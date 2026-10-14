@@ -26,8 +26,8 @@ Actualizado: 2026-10-14.
 ## Validación CI
 
 - Commit de código probado: `70ef0ce15b4122860c008036e1022f8c603a622b`.
-- GitHub Actions run **38607484217**: `success`; compilación y **83 pruebas** completadas correctamente en Python **3.10, 3.11, 3.12 y 3.13**.
-- Enlace: https://github.com/JEEM244/Omega/actions/runs/38607484217
+- GitHub Actions run **38607607696**: `success`; compilación y **83 pruebas** completadas correctamente en Python **3.10, 3.11, 3.12 y 3.13**. La ejecución posterior validará también los cambios de documentación y `.gitignore`.
+- Enlace: https://github.com/JEEM244/Omega/actions/runs/38607607696
 - Se añadió una regresión que comprueba que el REPL explique que `ID` es un marcador y debe sustituirse por el número real, por ejemplo `aprobar 1`.
 - `TERMUX_TESTING.md` documenta una secuencia manual por etapas para aprobación, auditoría y memoria persistente; la captura real queda separada.
 - Esto no demuestra todavía el permiso VPN, la captura real, ni compatibilidad con todos los Android.
