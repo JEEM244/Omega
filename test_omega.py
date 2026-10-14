@@ -526,7 +526,7 @@ class WireLabStandaloneTests(unittest.TestCase):
         ip = struct.pack("!BBHHHBBH4s4s", 0x45, 0, ip_len, 1, 0, 64, 6, 0,
                          socket.inet_aton("10.0.0.1"), socket.inet_aton("10.0.0.2"))
         frame = packet + ip + tcp
-        header = b"\\xd4\\xc3\\xb2\\xa1" + struct.pack("<HHIIII", 2, 4, 0, 0, 65535, 1)
+        header = bytes.fromhex("d4c3b2a1") + struct.pack("<HHIIII", 2, 4, 0, 0, 65535, 1)
         packet_header = struct.pack("<IIII", 1700000000, 500000, len(frame), len(frame))
         with tempfile.NamedTemporaryFile(delete=False) as output:
             path = output.name
