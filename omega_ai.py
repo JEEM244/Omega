@@ -713,7 +713,7 @@ def queue_actions(store: OmegaStore, actions: list[dict[str, Any]]) -> None:
     for action in actions:
         action_id = store.enqueue(action["kind"], action["args"])
         print(f"  [{action_id}] PENDIENTE — {describe_action(action)}")
-    print("Nada se ejecutó. Aprueba cada operación individualmente con: aprobar ID")
+    print("Nada se ejecutó. Aprueba cada operación individualmente; por ejemplo: aprobar 1 (usa el número real mostrado).")
 
 
 def help_text() -> str:
@@ -759,7 +759,7 @@ def help_text() -> str:
       CREAR "experimento.txt" = "Mi primer programa OMEGA"
 
     Las instrucciones no se ejecutan al cargarlas: cada una se pone en cola
-    y requiere 'aprobar ID'. No hay ejecución de shell ni Python arbitrario.
+    y requiere 'aprobar <ID>'; sustituye <ID> por el número real mostrado (por ejemplo, 'aprobar 1'). No hay ejecución de shell ni Python arbitrario.
     Workspace: solo ~/.omega_ai/workspace; no sobrescribe archivos existentes.
     """)
 
@@ -870,7 +870,7 @@ def run_repl(home: str | Path) -> int:
                     for row in rows:
                         print(f'  [{row["id"]}] {describe_action({"kind": row["kind"], "args": json.loads(row["args_json"])})}')
                 elif command == "aprobar":
-                    if not rest.strip().isdigit(): raise OmegaError("Uso: aprobar ID")
+                    if not rest.strip().isdigit(): raise OmegaError("Sustituye ID por el número real de la operación; ejemplo: aprobar 1")
                     action_id = int(rest.strip())
                     row = store.get_action(action_id)
                     if row is None: raise OmegaError(f"No existe la operación #{action_id}.")
@@ -882,7 +882,7 @@ def run_repl(home: str | Path) -> int:
                     else:
                         print("RESULTADO:", store.execute_approved(action_id, approved=True))
                 elif command == "rechazar":
-                    if not rest.strip().isdigit(): raise OmegaError("Uso: rechazar ID")
+                    if not rest.strip().isdigit(): raise OmegaError("Sustituye ID por el número real de la operación; ejemplo: rechazar 1")
                     print(store.reject(int(rest.strip())))
                 elif command == "memorias":
                     queue_actions(store, [{"kind": "memory_list", "args": {}}])
