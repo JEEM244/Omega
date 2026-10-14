@@ -1,0 +1,477 @@
+import io
+import socket
+import struct
+import tempfile
+import unittest
+from contextlib import redirect_stdout
+from unittest.mock import patch, Mock
+from pathlib import Path
+
+import omega_ai
+import security_lab
+
+
+class OmegaLanguageTests(unittest.TestCase):
+    def test_parse_all_supported_instructions(self):
+        actions = omega_ai.parse_language('''OMEGA 0.1
+MOSTRAR "hola"
+SUMAR 20 22
+ESTADO
+RECORDAR "x" = "y"
+LEER_MEMORIA "x"
+CREAR "demo.txt" = "contenido"
+''')
+        self.assertEqual(
+            [a["kind"] for a in actions],
+            ["show", "sum", "status", "memory_set", "memory_get", "file_create"],
+        )
+
+    def test_unknown_instruction_rejected_with_line_number(self):
+        with self.assertRaisesRegex(omega_ai.OmegaError, "Línea 1"):
+            omega_ai.parse_language("BORRAR TODO")
+
+    def test_reject_path_traversal(self):
+        with self.assertRaisesRegex(omega_ai.OmegaError, "Nombre no permitido"):
+            omega_ai.parse_language('CREAR "../important.txt" = "x"')
+
+
+    def test_instruction_count_is_bounded(self):
+        source = "\n".join(['MOSTRAR "x"'] * (omega_ai.MAX_INSTRUCTIONS + 1))
+        with self.assertRaisesRegex(omega_ai.OmegaError, "límite de 100"):
+            omega_ai.parse_language(source)
+
+
+    def test_script_size_limit(self):
+        with self.assertRaises(omega_ai.OmegaError):
+            omega_ai.parse_language('MOSTRAR "' + ('x' * (omega_ai.MAX_SCRIPT_BYTES + 10)) + '"')
+
+
+    def test_variables_expand_in_show_and_sum(self):
+        source = 'OMEGA 0.2\nDEFINIR greeting = "Hola OMEGA"\nDEFINIR left = 20\nDEFINIR right = 22\nMOSTRAR $greeting\nMOSTRAR "Resultado: $left + $right"\nSUMAR $left $right'
+        actions = omega_ai.parse_language(source)
+        self.assertEqual(actions[0]["args"]["text"], "Hola OMEGA")
+        self.assertEqual(actions[1]["args"]["text"], "Resultado: 20.0 + 22.0")
+        self.assertEqual((actions[2]["args"]["a"], actions[2]["args"]["b"]), (20.0, 22.0))
+
+    def test_true_and_false_conditions(self):
+        source = 'DEFINIR a = 5\nDEFINIR b = 8\nSI $a < $b ENTONCES MOSTRAR "verdadero"\nSI $a > $b ENTONCES MOSTRAR "no debe aparecer"\nMOSTRAR "fin"'
+        actions = omega_ai.parse_language(source)
+        self.assertEqual([item["args"].get("text") for item in actions], ["verdadero", "fin"])
+
+    def test_undefined_variable_rejected(self):
+        with self.assertRaisesRegex(omega_ai.OmegaError, "Variable no definida"):
+            omega_ai.parse_language("MOSTRAR $fantasma")
+
+    def test_variable_redefinition_rejected(self):
+        with self.assertRaisesRegex(omega_ai.OmegaError, "ya fue definida"):
+            omega_ai.parse_language('DEFINIR x = 1\nDEFINIR x = 2\nMOSTRAR $x')
+
+    def test_condition_type_mismatch_rejected(self):
+        with self.assertRaisesRegex(omega_ai.OmegaError, "tipos distintos"):
+            omega_ai.parse_language('DEFINIR x = 1\nSI $x == "uno" ENTONCES MOSTRAR "no"\nMOSTRAR "fin"')
+
+
+    def test_false_condition_is_valid_without_actions(self):
+        actions = omega_ai.parse_language('DEFINIR x = 3\nSI $x > 9 ENTONCES MOSTRAR "no"')
+        self.assertEqual(actions, [])
+
+    def test_audit_is_an_explicitly_approved_operation(self):
+        temp = tempfile.TemporaryDirectory()
+        store = omega_ai.OmegaStore(Path(temp.name) / "omega")
+        try:
+            action_id = store.enqueue("audit", {})
+            with self.assertRaisesRegex(omega_ai.OmegaError, "Falta aprobación explícita"):
+                store.execute_approved(action_id)
+            result = store.execute_approved(action_id, approved=True)
+            self.assertIn("SQLite integrity_check: ok", result)
+            self.assertIn("Red: no consultada", result)
+        finally:
+            store.close()
+            temp.cleanup()
+
+
+    def test_variable_expansion_is_bounded(self):
+        text = "x" * omega_ai.MAX_TEXT_CHARS
+        source = 'DEFINIR long = "' + text + '"\nMOSTRAR "$long$long"'
+        with self.assertRaisesRegex(omega_ai.OmegaError, "texto expandido supera"):
+            omega_ai.parse_language(source)
+
+
+
+
+
+
+    def test_language_capture_is_bounded(self):
+        actions = omega_ai.parse_language("CAPTURAR 10 SEGUNDOS MAX 100 PAQUETES")
+        self.assertEqual(actions[0]["kind"], "live_capture")
+        self.assertEqual(actions[0]["args"]["seconds"], 10)
+        self.assertEqual(actions[0]["args"]["max_packets"], 100)
+        with self.assertRaisesRegex(omega_ai.OmegaError, "durar entre 1 y 60"):
+            omega_ai.parse_language("CAPTURAR 61 SEGUNDOS MAX 100 PAQUETES")
+        with self.assertRaisesRegex(omega_ai.OmegaError, "admite entre 1 y 500"):
+            omega_ai.parse_language("CAPTURAR 10 SEGUNDOS MAX 501 PAQUETES")
+
+
+    def test_language_can_propose_pcap_inspection(self):
+        actions = omega_ai.parse_language('INSPECCIONAR "~/captura.pcapng"')
+        self.assertEqual(actions[0]["kind"], "capture_inspect")
+        self.assertEqual(actions[0]["args"]["path"], "~/captura.pcapng")
+
+
+    def test_language_scan_requires_explicit_authorization_and_private_target(self):
+        actions = omega_ai.parse_language('ESCANEAR "127.0.0.1" PUERTOS "22,80" AUTORIZADO')
+        self.assertEqual(actions[0]["kind"], "lab_scan")
+        self.assertTrue(actions[0]["args"]["authorized"])
+        with self.assertRaisesRegex(omega_ai.OmegaError, "Sintaxis"):
+            omega_ai.parse_language('ESCANEAR "127.0.0.1" PUERTOS "80"')
+        with self.assertRaisesRegex(omega_ai.OmegaError, "Objetivo o puertos"):
+            omega_ai.parse_language('ESCANEAR "8.8.8.8" PUERTOS "53" AUTORIZADO')
+
+    def test_language_scan_port_limit(self):
+        with self.assertRaisesRegex(omega_ai.OmegaError, "limita cada escaneo a 100"):
+            omega_ai.parse_language('ESCANEAR "127.0.0.1" PUERTOS "1-101" AUTORIZADO')
+
+
+    def test_language_can_propose_sqlite_compaction(self):
+        actions = omega_ai.parse_language("COMPACTAR")
+        self.assertEqual(actions[0]["kind"], "compact")
+
+
+    def test_language_can_propose_learning_example(self):
+        actions = omega_ai.parse_language('APRENDER "quiero revisar el sistema" = diagnostico')
+        self.assertEqual(actions[0]["kind"], "learn_example")
+        self.assertEqual(actions[0]["args"]["intent"], "diagnostico")
+
+
+    def test_goal_length_is_bounded(self):
+        with self.assertRaisesRegex(omega_ai.OmegaError, "objetivo debe tener"):
+            omega_ai.make_plan("x" * (omega_ai.MAX_GOAL_CHARS + 1))
+
+
+    def test_classifier_waits_for_two_intent_classes(self):
+        examples = [{"phrase": "revisar el sistema", "intent": "diagnostico"}]
+        self.assertIsNone(omega_ai.classify_intent("revisar el sistema", examples))
+
+    def test_classifier_learns_from_local_examples(self):
+        examples = [
+            {"phrase": "quiero revisar el estado del sistema", "intent": "diagnostico"},
+            {"phrase": "quiero guardar un recuerdo en memoria", "intent": "memoria"},
+        ]
+        self.assertEqual(omega_ai.classify_intent("quiero revisar el estado del sistema", examples), "diagnostico")
+        summary, actions = omega_ai.make_plan("quiero revisar el estado del sistema", examples)
+        self.assertIn("Clasificador local: diagnostico", summary)
+        self.assertEqual([action["kind"] for action in actions], ["status"])
+
+
+    def test_unmatched_query_falls_back_to_symbolic_rules(self):
+        examples = [
+            {"phrase": "quiero revisar el estado del sistema", "intent": "diagnostico"},
+            {"phrase": "quiero guardar un recuerdo en memoria", "intent": "memoria"},
+        ]
+        self.assertIsNone(omega_ai.classify_intent("crear un experimento", examples))
+        summary, actions = omega_ai.make_plan("crear un experimento", examples)
+        self.assertIn("Plan de experimento local", summary)
+        self.assertEqual([action["kind"] for action in actions], ["status", "file_create", "memory_set"])
+
+    def test_classifier_general_intent_uses_informational_plan(self):
+        examples = [
+            {"phrase": "guardar memoria recuerdo", "intent": "memoria"},
+            {"phrase": "mensaje general sin tarea concreta", "intent": "general"},
+        ]
+        summary, actions = omega_ai.make_plan("mensaje general sin tarea concreta", examples)
+        self.assertIn("intención general", summary)
+        self.assertEqual(actions[0]["kind"], "show")
+
+
+class OmegaApprovalAndMemoryTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.home = Path(self.temp.name) / "omega"
+        self.store = omega_ai.OmegaStore(self.home)
+
+    def tearDown(self):
+        self.store.close()
+        self.temp.cleanup()
+
+
+    def test_workspace_symlink_is_rejected(self):
+        outside = Path(self.temp.name) / "outside"
+        outside.mkdir()
+        isolated_home = Path(self.temp.name) / "symlink-workspace-home"
+        isolated_home.mkdir()
+        (isolated_home / "workspace").symlink_to(outside, target_is_directory=True)
+        with self.assertRaisesRegex(omega_ai.OmegaError, "workspace no puede ser un enlace simbólico"):
+            omega_ai.OmegaStore(isolated_home)
+
+
+    def test_sqlite_sidecar_symlink_is_rejected(self):
+        outside = Path(self.temp.name) / "outside-wal"
+        outside.write_bytes(b"leave alone")
+        isolated_home = Path(self.temp.name) / "symlink-wal-home"
+        isolated_home.mkdir()
+        (isolated_home / "omega.sqlite3-wal").symlink_to(outside)
+        with self.assertRaisesRegex(omega_ai.OmegaError, "auxiliares de SQLite"):
+            omega_ai.OmegaStore(isolated_home)
+        self.assertEqual(outside.read_bytes(), b"leave alone")
+
+    def test_corrupt_action_json_is_marked_failed(self):
+        action_id = self.store.enqueue("show", {"text": "hello"})
+        self.store.db.execute("UPDATE approvals SET args_json=? WHERE id=?", ("not-json", action_id))
+        self.store.db.commit()
+        with self.assertRaises(omega_ai.OmegaError):
+            self.store.execute_approved(action_id, approved=True)
+        self.assertEqual(self.store.get_action(action_id)["status"], "failed")
+
+
+    def test_database_symlink_is_rejected(self):
+        outside = Path(self.temp.name) / "outside.sqlite3"
+        outside.write_bytes(b"do not touch")
+        isolated_home = Path(self.temp.name) / "symlink-db-home"
+        isolated_home.mkdir()
+        (isolated_home / "omega.sqlite3").symlink_to(outside)
+        with self.assertRaisesRegex(omega_ai.OmegaError, "base de datos no puede ser un enlace simbólico"):
+            omega_ai.OmegaStore(isolated_home)
+        self.assertEqual(outside.read_bytes(), b"do not touch")
+
+
+    def test_action_does_not_execute_until_approved(self):
+        action_id = self.store.enqueue("file_create", {"filename": "demo.txt", "content": "hello"})
+        self.assertFalse((self.store.workspace / "demo.txt").exists())
+        with self.assertRaisesRegex(omega_ai.OmegaError, "Falta aprobación explícita"):
+            self.store.execute_approved(action_id)
+        self.assertFalse((self.store.workspace / "demo.txt").exists())
+        result = self.store.execute_approved(action_id, approved=True)
+        self.assertIn("Archivo creado", result)
+        self.assertEqual((self.store.workspace / "demo.txt").read_text(), "hello")
+        self.assertEqual(self.store.get_action(action_id)["status"], "approved")
+
+
+    def test_repl_does_not_execute_without_exact_si(self):
+        home = Path(self.temp.name) / "repl-no"
+        answers = ['recordar "safe" = "value"', "aprobar 1", "yes", "salir"]
+        with patch("builtins.input", side_effect=answers), redirect_stdout(io.StringIO()):
+            omega_ai.run_repl(home)
+        reopened = omega_ai.OmegaStore(home)
+        try:
+            self.assertIn("No existe memoria", reopened.recall("safe"))
+            self.assertEqual(reopened.get_action(1)["status"], "pending")
+        finally:
+            reopened.close()
+
+    def test_repl_executes_after_exact_si(self):
+        home = Path(self.temp.name) / "repl-yes"
+        answers = ['recordar "safe" = "value"', "aprobar 1", "SI", "salir"]
+        with patch("builtins.input", side_effect=answers), redirect_stdout(io.StringIO()):
+            omega_ai.run_repl(home)
+        reopened = omega_ai.OmegaStore(home)
+        try:
+            self.assertIn("value", reopened.recall("safe"))
+            self.assertEqual(reopened.get_action(1)["status"], "approved")
+        finally:
+            reopened.close()
+
+
+    def test_reject_never_creates_file(self):
+        action_id = self.store.enqueue("file_create", {"filename": "no.txt", "content": "no"})
+        self.store.reject(action_id)
+        self.assertFalse((self.store.workspace / "no.txt").exists())
+        self.assertEqual(self.store.get_action(action_id)["status"], "rejected")
+
+    def test_memory_persists_after_reopen(self):
+        action_id = self.store.enqueue("memory_set", {"key": "goal", "value": "build omega"})
+        self.store.execute_approved(action_id, approved=True)
+        self.store.close()
+        reopened = omega_ai.OmegaStore(self.home)
+        try:
+            self.assertIn("build omega", reopened.recall("goal"))
+        finally:
+            reopened.close()
+
+    def test_duplicate_approval_is_refused(self):
+        action_id = self.store.enqueue("show", {"text": "hello"})
+        self.store.execute_approved(action_id, approved=True)
+        with self.assertRaisesRegex(omega_ai.OmegaError, "ya está en estado approved"):
+            self.store.execute_approved(action_id, approved=True)
+
+    def test_no_overwrite_existing_file(self):
+        path = self.store.workspace / "same.txt"
+        path.write_text("original")
+        action_id = self.store.enqueue("file_create", {"filename": "same.txt", "content": "replacement"})
+        with self.assertRaisesRegex(omega_ai.OmegaError, "ya existe"):
+            self.store.execute_approved(action_id, approved=True)
+        self.assertEqual(path.read_text(), "original")
+
+
+
+    def test_learning_example_requires_approval_and_persists(self):
+        action_id = self.store.enqueue(
+            "learn_example",
+            {"phrase": "quiero revisar el sistema", "intent": "diagnostico"},
+        )
+        with self.assertRaisesRegex(omega_ai.OmegaError, "Falta aprobación explícita"):
+            self.store.execute_approved(action_id)
+        self.assertEqual(self.store.training_examples(), [])
+        result = self.store.execute_approved(action_id, approved=True)
+        self.assertIn("aprendizaje local", result)
+        self.assertEqual(self.store.training_examples()[0]["intent"], "diagnostico")
+
+
+
+    def test_memory_size_is_bounded(self):
+        with self.assertRaisesRegex(omega_ai.OmegaError, "valor de memoria supera"):
+            self.store.remember("large", "x" * (omega_ai.MAX_TEXT_CHARS + 1))
+
+    def test_memory_count_is_capped(self):
+        for index in range(omega_ai.MAX_MEMORIES + 3):
+            self.store.remember(f"key_{index}", "value")
+        count = self.store.db.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
+        self.assertEqual(count, omega_ai.MAX_MEMORIES)
+
+
+
+
+
+    def test_live_capture_requires_approval_and_uses_bounded_wirelab_args(self):
+        with tempfile.TemporaryDirectory(dir=Path.home(), prefix=".omega-live-test-") as temp_dir:
+            output = Path(temp_dir) / "capture.pcap"
+            action_id = self.store.enqueue("live_capture", {
+                "seconds": 5, "max_packets": 20, "output": str(output)
+            })
+            with patch("wirelab_live.main") as capture_main:
+                with self.assertRaisesRegex(omega_ai.OmegaError, "Falta aprobación explícita"):
+                    self.store.execute_approved(action_id)
+                capture_main.assert_not_called()
+
+                def fake_capture_main():
+                    args = list(__import__("sys").argv)
+                    self.assertIn("--launch-pcapdroid", args)
+                    self.assertEqual(args[args.index("--seconds") + 1], "5")
+                    self.assertEqual(args[args.index("--max-packets") + 1], "20")
+                    output_path = Path(args[args.index("--output") + 1])
+                    output_path.write_bytes(b"fake pcap for test")
+                    return 0
+
+                capture_main.side_effect = fake_capture_main
+                result = self.store.execute_approved(action_id, approved=True)
+                self.assertIn("Captura guardada", result)
+                self.assertTrue(output.exists())
+
+
+    def test_pcap_inspection_requires_approval_and_reads_local_capture(self):
+        with tempfile.TemporaryDirectory(dir=Path.home(), prefix=".omega-pcap-test-") as temp_dir:
+            path = Path(temp_dir) / "empty.pcap"
+            path.write_bytes(b"\xd4\xc3\xb2\xa1" + struct.pack("<HHIIII", 2, 4, 0, 0, 65535, 1))
+            action_id = self.store.enqueue("capture_inspect", {"path": str(path)})
+            with self.assertRaisesRegex(omega_ai.OmegaError, "Falta aprobación explícita"):
+                self.store.execute_approved(action_id)
+            result = self.store.execute_approved(action_id, approved=True)
+            self.assertIn("Archivo:", result)
+            self.assertIn("PCAP", result)
+            self.assertIn("paquetes procesados: 0", result)
+
+    def test_pcap_inspection_rejects_symlink(self):
+        with tempfile.TemporaryDirectory(dir=Path.home(), prefix=".omega-pcap-link-") as temp_dir:
+            target = Path(temp_dir) / "real.pcap"
+            target.write_bytes(b"\xd4\xc3\xb2\xa1" + struct.pack("<HHIIII", 2, 4, 0, 0, 65535, 1))
+            link = Path(temp_dir) / "link.pcap"
+            link.symlink_to(target)
+            action_id = self.store.enqueue("capture_inspect", {"path": str(link)})
+            with self.assertRaisesRegex(omega_ai.OmegaError, "enlaces simbólicos"):
+                self.store.execute_approved(action_id, approved=True)
+
+    def test_pcap_inspection_rejects_path_outside_home(self):
+        path = Path(self.temp.name) / "outside.pcap"
+        path.write_bytes(b"\xd4\xc3\xb2\xa1" + struct.pack("<HHIIII", 2, 4, 0, 0, 65535, 1))
+        action_id = self.store.enqueue("capture_inspect", {"path": str(path)})
+        with self.assertRaisesRegex(omega_ai.OmegaError, "dentro del directorio personal"):
+            self.store.execute_approved(action_id, approved=True)
+
+
+    def test_real_loopback_scan_requires_approval_and_detects_open_port(self):
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        port = listener.getsockname()[1]
+        try:
+            action_id = self.store.enqueue(
+                "lab_scan",
+                {"target": "127.0.0.1", "ports": [port], "authorized": True},
+            )
+            with self.assertRaisesRegex(omega_ai.OmegaError, "Falta aprobación explícita"):
+                self.store.execute_approved(action_id)
+            result = self.store.execute_approved(action_id, approved=True)
+            self.assertIn(f"{port}/tcp", result)
+            self.assertIn("open", result)
+        finally:
+            listener.close()
+
+
+    def test_sqlite_compaction_refuses_low_free_space(self):
+        action_id = self.store.enqueue("compact", {})
+        with patch("omega_ai.shutil.disk_usage", return_value=Mock(free=0)):
+            with self.assertRaisesRegex(omega_ai.OmegaError, "No hay espacio libre suficiente"):
+                self.store.execute_approved(action_id, approved=True)
+        self.assertEqual(self.store.get_action(action_id)["status"], "failed")
+
+    def test_training_examples_are_capped(self):
+        for index in range(omega_ai.MAX_TRAINING_EXAMPLES + 3):
+            self.store.learn_example(f"frase de ejemplo {index}", "diagnostico")
+        count = self.store.db.execute("SELECT COUNT(*) FROM training_examples").fetchone()[0]
+        self.assertEqual(count, omega_ai.MAX_TRAINING_EXAMPLES)
+
+
+    def test_sqlite_compaction_requires_approval(self):
+        action_id = self.store.enqueue("compact", {})
+        with self.assertRaisesRegex(omega_ai.OmegaError, "Falta aprobación explícita"):
+            self.store.execute_approved(action_id)
+        result = self.store.execute_approved(action_id, approved=True)
+        self.assertIn("Base de datos compactada", result)
+
+
+
+    def test_pending_queue_is_bounded(self):
+        for index in range(omega_ai.MAX_PENDING):
+            self.store.enqueue("show", {"text": str(index)})
+        with self.assertRaisesRegex(omega_ai.OmegaError, "cola ya tiene 100"):
+            self.store.enqueue("show", {"text": "overflow"})
+        self.assertEqual(len(self.store.pending()), omega_ai.MAX_PENDING)
+
+    def test_action_batch_is_rejected_without_partial_queueing(self):
+        for index in range(omega_ai.MAX_PENDING - 5):
+            self.store.enqueue("show", {"text": str(index)})
+        before = len(self.store.pending())
+        with redirect_stdout(io.StringIO()), patch("sys.stderr", new_callable=io.StringIO):
+            omega_ai.queue_actions(
+                self.store,
+                [{"kind": "show", "args": {"text": str(i)}} for i in range(10)],
+            )
+        self.assertEqual(len(self.store.pending()), before)
+
+
+    def test_history_returns_newest_actions_first_and_caps_limit(self):
+        first = self.store.enqueue("show", {"text": "one"})
+        second = self.store.enqueue("show", {"text": "two"})
+        rows = self.store.history(1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["id"], second)
+        self.assertGreater(second, first)
+
+
+    def test_planner_returns_reviewable_actions(self):
+        summary, actions = omega_ai.make_plan("crear un experimento")
+        self.assertIn("aprobación individual", summary)
+        self.assertEqual([x["kind"] for x in actions], ["status", "file_create", "memory_set"])
+
+    def test_arbitrary_operation_is_not_executable(self):
+        action_id = self.store.enqueue("shell", {"command": "rm -rf /"})
+        with self.assertRaisesRegex(omega_ai.OmegaError, "no permitido"):
+            self.store.execute_approved(action_id, approved=True)
+
+
+    def test_omega_is_registered_in_lab_launcher(self):
+        self.assertEqual(security_lab.COMMANDS["omega"][0], "omega_ai")
+
+
+if __name__ == "__main__":
+    unittest.main()
