@@ -32,6 +32,7 @@ Consulta [`TERMUX_TESTING.md`](TERMUX_TESTING.md) para verificar paso a paso la 
 ## Diseño
 
 - Lenguaje declarativo propio; variables, comparaciones y acciones acotadas.
+- Interfaz REPL minimalista inspirada en agentes de terminal: bienvenida compacta, prompt `❯`, acento naranja y comandos con prefijo `/` (por ejemplo, `/ayuda`). No usa dependencias de UI; los colores ANSI se desactivan fuera de una terminal interactiva o con `NO_COLOR`.
 - Memoria persistente local SQLite e historial.
 - Planificador simbólico y pequeño clasificador Naive Bayes implementado desde cero, entrenado solo con ejemplos locales que el usuario aprueba.
 - Lista cerrada de operaciones aprobables: no ejecuta shell ni Python arbitrario.
