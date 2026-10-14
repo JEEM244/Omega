@@ -648,11 +648,12 @@ class OmegaFileSafetyEdgeTests(unittest.TestCase):
         self.assertFalse((self.store.workspace / "too-big.txt").exists())
 
     def test_capture_inspection_rejects_non_capture_extension(self):
-        path = self.store.home / "notes.txt"
+        path = Path.home() / "omega-test-notes.txt"
         path.write_text("not a capture", encoding="utf-8")
         action_id = self.store.enqueue("capture_inspect", {"path": str(path)})
         with self.assertRaisesRegex(omega_ai.OmegaError, "PCAP/PCAPNG"):
             self.store.execute_approved(action_id, approved=True)
+        path.unlink(missing_ok=True)
 
     def test_capture_inspection_rejects_file_over_size_limit(self):
         path = Path(self.temp.name) / "large.pcap"
