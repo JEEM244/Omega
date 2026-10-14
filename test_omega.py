@@ -951,3 +951,19 @@ class WireLabBoundedCaptureTests(unittest.TestCase):
             self.assertEqual(run.call_count, 2)
             stop_command = run.call_args_list[-1].args[0]
             self.assertIn("stop", stop_command)
+
+
+class TerminalUiTests(unittest.TestCase):
+    def test_banner_has_local_identity_and_offline_status(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            omega_ai.print_terminal_banner("/tmp/omega-test", enabled=False)
+        rendered = output.getvalue()
+        self.assertIn("Ω  OMEGA AI", rendered)
+        self.assertIn("offline", rendered)
+        self.assertIn("sin root", rendered)
+        self.assertIn("/tmp/omega-test", rendered)
+        self.assertNotIn("\\033[", rendered)
+
+    def test_terminal_style_respects_disabled_color(self):
+        self.assertEqual(omega_ai.terminal_style("❯ ", "orange", enabled=False), "❯ ")
