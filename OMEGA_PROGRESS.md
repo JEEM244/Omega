@@ -28,7 +28,7 @@ Actualizado: 2026-10-14.
 - Commit de código probado: `8a8c1bb70929e30d1453b3581d8720a0e4445113`.
 - GitHub Actions run **38606125912**: `success`; compilación y **82 pruebas** completadas correctamente.
 - Enlace: https://github.com/JEEM244/Omega/actions/runs/38606125912
-- La documentación previa también pasó CI en run **38605795774**: https://github.com/JEEM244/Omega/actions/runs/38605795774. Los cambios de documentación de captura se validarán con el siguiente run.
+- La documentación y la bitácora actualizadas también pasaron CI en run **38606276955**: https://github.com/JEEM244/Omega/actions/runs/38606276955.
 - Esto no demuestra todavía el permiso VPN, la captura real, ni compatibilidad con todos los Android.
 
 ## Pendientes reales
