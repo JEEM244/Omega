@@ -2,40 +2,38 @@
 
 Actualizado: 2026-10-14.
 
-## Repositorio oficial y reglas
+## Repositorio oficial
 
-- Repositorio independiente: https://github.com/JEEM244/Omega
-- Rama de trabajo: `main`.
-- Se conserva el prototipo anterior intacto en https://github.com/JEEM244/herramientas-termux/tree/omega-ai-prototype; el PR histórico permanece sin fusionar: https://github.com/JEEM244/herramientas-termux/pull/1
-- El desarrollo nuevo se realiza en este repositorio, sin depender del lanzador de herramientas-termux.
-- No asegurar compatibilidad Android hasta probar el proyecto desde Termux real.
-- Escaneo solo en objetivos autorizados. Captura solo con autorización y aceptación de la VPN de PCAPdroid.
+- Proyecto independiente: https://github.com/JEEM244/Omega
+- Rama principal de desarrollo: `main`.
+- El prototipo previo se conserva sin alterar en https://github.com/JEEM244/herramientas-termux/tree/omega-ai-prototype. El PR histórico permanece sin fusionar: https://github.com/JEEM244/herramientas-termux/pull/1
+- El nuevo desarrollo se hace aquí, sin dependencia del lanzador del repositorio histórico.
+- No declarar compatibilidad Android confirmada hasta probar en Termux en el dispositivo del usuario.
+- Escaneo solamente en objetivos autorizados; captura solo tras autorización explícita y consentimiento VPN de PCAPdroid.
 
-## Código actual
+## Estado del código
 
-- `omega_ai.py`: OMEGA AI 0.3.0, lenguaje declarativo, variables/condiciones, planificador simbólico, memoria SQLite, aprendizaje local limitado y aprobaciones explícitas.
-- `test_omega.py`: suite unitaria independiente; incluye pruebas de lenguaje, memoria y aprobaciones, NetMap, lectura PCAP y PCAPdroid.
-- `netmap.py`: escáner TCP connect acotado, compatible con la API de render que llama el núcleo.
-- `pcap_inspector.py`: lector/analizador PCAP y PCAPNG ligero.
-- `wirelab_live.py`: receptor UDP local para el exportador de PCAPdroid.
-- `OMEGA.md`, `README.md`, `demo.omg`.
-- `.github/workflows/omega-tests.yml`: workflow exclusivo de OMEGA.
-- `security_lab.py` quedó como shim de compatibilidad; la suite ya no depende de él.
-- Se corrigió un fixture de prueba que representaba mal la cabecera binaria PCAP y se movió el bloque `unittest.main()` al final para que las pruebas añadidas se descubran al ejecutar la suite.
+- `omega_ai.py`: núcleo OMEGA AI 0.3.0, lenguaje declarativo, variables/condiciones, planificación simbólica, memoria SQLite, registro de eventos, clasificador Naive Bayes local limitado y autorización por operación.
+- `test_omega.py`: suite independiente de **67 pruebas** para lenguaje, memoria, aprobación, NetMap, PCAP/PCAPNG y parser de PCAPdroid.
+- `netmap.py`: escáner TCP connect de IPv4 privada/loopback/link-local; límites de puertos y timeout, con render compatible con el núcleo.
+- `pcap_inspector.py`: analizador local PCAP/PCAPNG ligero.
+- `wirelab_live.py`: receptor UDP loopback para exportación PCAPdroid, sin shell arbitrario.
+- `README.md`, `OMEGA.md`, `demo.omg`.
+- `.github/workflows/omega-tests.yml`: CI independiente.
+- Se removió la dependencia de las pruebas al lanzador de `herramientas-termux`; el historial anterior sigue conservado.
 
-## CI verificado
+## Última validación CI
 
-- Último commit comprobado: `6c001bd3f838c9f1bd2ec0bf67d96fdd9071b90b`.
-- Run de Actions: `38562897852`, conclusión `success`.
-- Enlace: https://github.com/JEEM244/Omega/actions/runs/38562897852
-- Compilación de módulos y suite `test_omega` terminaron correctamente (61 pruebas en la última ejecución).
-- CI no confirma todavía que todos los dispositivos Android funcionen ni valida captura PCAPdroid real en un móvil.
+- Commit con suite ampliada: `f62c0038f6e1ae580deffb3f2b210c7c6df9da53`.
+- GitHub Actions run `38563258512`: `success`.
+- Enlace: https://github.com/JEEM244/Omega/actions/runs/38563258512
+- La compilación y la suite terminaron bien. Esto no prueba por sí mismo el permiso VPN, la captura real ni la compatibilidad con todos los Android.
 
 ## Siguiente trabajo
 
-1. Revisar límites y rutas en los adaptadores importados, incluyendo PCAPNG, datagramas malformados y salida de captura sin paquetes.
-2. Añadir casos límite para la base SQLite y crear archivos.
-3. En Termux, ejecutar:
+1. Revisar posibles fallos de seguridad en límites y rutas de SQLite, workspace y captura; corregir con pruebas específicas.
+2. Revisar los límites/errores del parser PCAPNG, timestamps, paquetes truncados y tráfico UDP.
+3. El usuario ejecuta en Termux:
    ```bash
    git clone https://github.com/JEEM244/Omega.git
    cd Omega
@@ -43,8 +41,8 @@ Actualizado: 2026-10-14.
    python -m unittest -v test_omega
    python omega_ai.py
    ```
-4. Corregir los fallos reales que aparezcan en el teléfono antes de considerar listo el proyecto.
+4. Analizar el resultado real del teléfono antes de considerar listo el proyecto.
 
 ## Recuperación
 
-Actualizar este archivo antes de pausar: SHA, resultado real de CI y siguiente paso accionable. No borrar ni fusionar el repositorio histórico.
+Antes de pausar, actualizar este archivo con SHA real y estado del run más reciente. No fusionar ni borrar el repositorio histórico.
