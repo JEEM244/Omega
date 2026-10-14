@@ -25,7 +25,12 @@ def decode_transport(frame,off,proto,src,dst,end):
         return result("TCP",src,dst,info,details,sp,dp,app)
     if proto==17:
         if end<off+8:return result("UDP",src,dst,"UDP header truncated")
-        sp,dp,length=struct.unpack("!HHH",frame[off:off+6]); payload=frame[off+8:min(end,off+length) if length>=8 else end]
+        sp,dp,length=struct.unpack("!HHH",frame[off:off+6])
+        if length < 8:
+            return result("UDP",src,dst,"Invalid UDP length",f"length={length}",sp,dp)
+        if off+length > end:
+            return result("UDP",src,dst,"UDP payload truncated",f"length={length}; available={max(0,end-off)}",sp,dp)
+        payload=frame[off+8:off+length]
         app=""; info=f"UDP {sp} → {dp}"; details=f"length={length}"
         if sp==53 or dp==53: app="DNS"; dns,dd=decode_dns(payload); info+=" | "+dns; details+="; "+dd
         return result("UDP",src,dst,info,details,sp,dp,app)
@@ -90,20 +95,45 @@ def iter_capture(path):
                 tail=stream.read(total-8)
                 if len(tail)!=total-8 or struct.unpack(endian+"I",tail[-4:])[0]!=total:raise ValueError("PCAPNG block invalid")
                 body=tail[:-4]
-                if typ==1 and len(body)>=8:
-                    lt,_,snap=struct.unpack(endian+"HHI",body[:8]);interfaces.append({"linktype":lt,"snaplen":snap})
+                if typ==1:
+                    if len(body)<8:raise ValueError("PCAPNG interface block truncated")
+                    lt,_,snap=struct.unpack(endian+"HHI",body[:8])
+                    resolution=1e6
+                    pos=8
+                    while pos+4<=len(body):
+                        code,optlen=struct.unpack(endian+"HH",body[pos:pos+4]);pos+=4
+                        if code==0:
+                            if optlen!=0:raise ValueError("PCAPNG end-of-options invalid")
+                            break
+                        padded=(optlen+3)&~3
+                        if pos+padded>len(body):raise ValueError("PCAPNG interface option truncated")
+                        value=body[pos:pos+optlen]
+                        if code==9:
+                            if optlen!=1:raise ValueError("PCAPNG timestamp resolution invalid")
+                            exponent=value[0]&0x7f
+                            resolution=(2**exponent) if value[0]&0x80 else (10**exponent)
+                        pos+=padded
+                    interfaces.append({"linktype":lt,"snaplen":snap,"timestamp_resolution":resolution})
                 elif typ in (2,3,6) and interfaces:
                     if typ==6:
-                        if len(body)<20:continue
+                        if len(body)<20:raise ValueError("PCAPNG enhanced packet block truncated")
                         iface,hi,lo,cap,orig=struct.unpack(endian+"IIIII",body[:20]);data=body[20:20+cap]
                     elif typ==2:
-                        if len(body)<20:continue
+                        if len(body)<20:raise ValueError("PCAPNG packet block truncated")
                         iface,_,hi,lo,cap,orig=struct.unpack(endian+"HHIIII",body[:20]);data=body[20:20+cap]
                     else:
-                        if len(body)<4:continue
-                        iface=0;orig=struct.unpack(endian+"I",body[:4])[0];data=body[4:];cap=min(orig,len(data));hi=lo=0
-                    if cap>MAX_BLOCK or len(data)<cap or iface>=len(interfaces):continue
-                    yield "packet",{"timestamp":None if typ==3 else ((hi<<32)|lo)/1e6,"captured_length":cap,"original_length":orig,"linktype":interfaces[iface]["linktype"],"data":data[:cap]}
+                        if len(body)<4:raise ValueError("PCAPNG simple packet block truncated")
+                        iface=0;orig=struct.unpack(endian+"I",body[:4])[0];data=body[4:]
+                        cap=min(orig,interfaces[0]["snaplen"] or orig)
+                        hi=lo=0
+                    if cap>MAX_BLOCK:raise ValueError("PCAPNG packet too large")
+                    if len(data)<cap:raise ValueError("PCAPNG packet data truncated")
+                    if iface>=len(interfaces):raise ValueError("PCAPNG packet references unknown interface")
+                    if cap>orig:raise ValueError("PCAPNG captured length exceeds original length")
+                    snap=interfaces[iface]["snaplen"]
+                    if snap and cap>snap:raise ValueError("PCAPNG captured length exceeds snaplen")
+                    resolution=interfaces[iface]["timestamp_resolution"]
+                    yield "packet",{"timestamp":None if typ==3 else ((hi<<32)|lo)/resolution,"captured_length":cap,"original_length":orig,"linktype":interfaces[iface]["linktype"],"data":data[:cap]}
         else:
             magics={b"\xd4\xc3\xb2\xa1":("<",1e6),b"\xa1\xb2\xc3\xd4":(">",1e6),b"\x4d\x3c\xb2\xa1":("<",1e9),b"\xa1\xb2\x3c\x4d":(">",1e9)}
             if first[:4] not in magics:raise ValueError("Not PCAP/PCAPNG")
@@ -111,13 +141,18 @@ def iter_capture(path):
             if len(rest)!=16:raise ValueError("PCAP global header truncated")
             major,minor=struct.unpack(endian+"HH",first[4:8]);_,_,snap,link=struct.unpack(endian+"IIII",rest)
             if major!=2:raise ValueError("Unsupported PCAP version")
+            if snap==0 or snap>MAX_BLOCK:raise ValueError("PCAP snaplen invalid")
             yield "header",{"format":"PCAP","major":major,"minor":minor,"snaplen":snap,"linktype":link}
             while True:
                 h=stream.read(16)
                 if not h:return
                 if len(h)!=16:raise ValueError("Packet header truncated")
                 sec,frac,cap,orig=struct.unpack(endian+"IIII",h)
+                max_fraction=int(scale)
+                if frac>=max_fraction:raise ValueError("PCAP timestamp fraction out of range")
                 if cap>MAX_BLOCK:raise ValueError("Packet too large")
+                if cap>orig:raise ValueError("PCAP captured length exceeds original length")
+                if cap>snap:raise ValueError("PCAP captured length exceeds snaplen")
                 data=stream.read(cap)
                 if len(data)!=cap:raise ValueError("Packet data truncated")
                 yield "packet",{"timestamp":sec+frac/scale,"captured_length":cap,"original_length":orig,"linktype":link,"data":data}
