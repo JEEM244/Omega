@@ -618,3 +618,51 @@ class WireLabEdgeCaseTests(unittest.TestCase):
             path = os.path.join(directory, "missing", "capture.pcap")
             with self.assertRaises(OSError):
                 wirelab_live.safe_output_path(path)
+
+
+class OmegaFileSafetyEdgeTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.store = omega_ai.OmegaStore(Path(self.temp.name) / "omega")
+
+    def tearDown(self):
+        self.store.close()
+        self.temp.cleanup()
+
+    def test_file_create_rejects_symlink_destination(self):
+        outside = Path(self.temp.name) / "outside.txt"
+        outside.write_text("untouched", encoding="utf-8")
+        link = self.store.workspace / "linked.txt"
+        link.symlink_to(outside)
+        action_id = self.store.enqueue("file_create", {"filename": "linked.txt", "content": "overwrite"})
+        with self.assertRaisesRegex(omega_ai.OmegaError, "ya existe"):
+            self.store.execute_approved(action_id, approved=True)
+        self.assertEqual(outside.read_text(encoding="utf-8"), "untouched")
+
+    def test_file_create_revalidates_content_limit_at_execution(self):
+        action_id = self.store.enqueue("file_create", {
+            "filename": "too-big.txt", "content": "x" * (omega_ai.MAX_TEXT_CHARS + 1)
+        })
+        with self.assertRaisesRegex(omega_ai.OmegaError, "demasiado largo"):
+            self.store.execute_approved(action_id, approved=True)
+        self.assertFalse((self.store.workspace / "too-big.txt").exists())
+
+    def test_capture_inspection_rejects_non_capture_extension(self):
+        path = Path(self.temp.name) / "notes.txt"
+        path.write_text("not a capture", encoding="utf-8")
+        action_id = self.store.enqueue("capture_inspect", {"path": str(path)})
+        with self.assertRaisesRegex(omega_ai.OmegaError, "PCAP/PCAPNG"):
+            self.store.execute_approved(action_id, approved=True)
+
+    def test_capture_inspection_rejects_file_over_size_limit(self):
+        path = Path(self.temp.name) / "large.pcap"
+        path.write_bytes(b"x" * (omega_ai.MAX_INSPECT_BYTES + 1))
+        action_id = self.store.enqueue("capture_inspect", {"path": str(path)})
+        with self.assertRaisesRegex(omega_ai.OmegaError, "directorio personal|supera el límite"):
+            self.store.execute_approved(action_id, approved=True)
+
+    def test_learn_example_rejects_unknown_intent_even_if_queue_is_tampered(self):
+        action_id = self.store.enqueue("learn_example", {"phrase": "hello", "intent": "execute"})
+        with self.assertRaises(omega_ai.OmegaError):
+            self.store.execute_approved(action_id, approved=True)
+        self.assertEqual(self.store.get_action(action_id)["status"], "failed")
