@@ -811,7 +811,7 @@ def terminal_style(text: str, color: str, enabled: bool | None = None) -> str:
     code = palette.get(color)
     if not enabled or code is None:
         return text
-    return f"\\033[{code}m{text}\\033[0m"
+    return f"\033[{code}m{text}\033[0m"
 
 
 def print_terminal_banner(home: str | Path, enabled: bool | None = None) -> None:
