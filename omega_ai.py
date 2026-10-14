@@ -818,12 +818,14 @@ def print_terminal_banner(home: str | Path, enabled: bool | None = None) -> None
     """Render a compact Claude-Code-inspired welcome screen without dependencies."""
     if enabled is None:
         enabled = terminal_color_enabled()
-    print(terminal_style("Ω  OMEGA AI", "orange", enabled))
+    print(terminal_style("✳  OMEGA AI", "orange", enabled))
     print(terminal_style(f"v{VERSION} · asistente local para Termux", "muted", enabled))
     print(terminal_style("offline  ·  sin root  ·  memoria SQLite local", "green", enabled))
     print(terminal_style(f"Directorio de datos: {Path(home)}", "muted", enabled))
     print()
-    print("Escribe 'ayuda' para ver los comandos.")
+    print(terminal_style("Bienvenido a OMEGA AI", "bold", enabled))
+    print("Asistente local para trabajar, recordar y analizar.")
+    print(terminal_style("Comandos rápidos: /ayuda · /estado · /pendientes · /salir", "muted", enabled))
     print(terminal_style("─" * min(max(shutil.get_terminal_size(fallback=(80, 24)).columns, 32), 56), "muted", enabled))
 
 
@@ -842,7 +844,7 @@ def run_repl(home: str | Path) -> int:
             if not raw:
                 continue
             command, _, rest = raw.partition(" ")
-            command = command.casefold()
+            command = command.casefold().lstrip("/")
             try:
                 if command in ("salir", "exit", "quit"):
                     break
