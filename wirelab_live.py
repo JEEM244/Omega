@@ -76,13 +76,23 @@ def main():
             out.write(struct.pack("<IIII",rec["seconds"],rec["fraction"],rec["captured"],rec["original"]));out.write(rec["frame"]);count+=1
     except KeyboardInterrupt:pass
     finally:
-        sock.close()
-        if out is not None:out.flush();out.close()
-    if args.launch_pcapdroid:
         try:
-            am=shutil.which("am") or "/system/bin/am";cmd=pcapdroid_command("stop",args.port);cmd[0]=am
-            subprocess.run(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=15,check=False)
-        except (OSError,subprocess.TimeoutExpired):pass
+            sock.close()
+        finally:
+            try:
+                if out is not None:
+                    try:
+                        out.flush()
+                    finally:
+                        out.close()
+            finally:
+                # Always attempt to stop PCAPdroid, even if receiving or writing
+                # the capture fails unexpectedly.
+                if args.launch_pcapdroid:
+                    try:
+                        am=shutil.which("am") or "/system/bin/am";cmd=pcapdroid_command("stop",args.port);cmd[0]=am
+                        subprocess.run(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=15,check=False)
+                    except (OSError,subprocess.TimeoutExpired):pass
     print(f"Captura terminada: {count} paquetes guardados, {invalid} inválidos; salida {path}")
     return 0
 if __name__=="__main__":raise SystemExit(main())
