@@ -14,6 +14,8 @@ Actualizado: 2026-10-14.
 ## Estado del código
 
 - `omega_ai.py`: núcleo OMEGA AI 0.3.0, lenguaje declarativo, variables/condiciones, planificación simbólica, memoria SQLite, historial, clasificador Naive Bayes local limitado y autorización por operación.
+- Interfaz de terminal añadida: bienvenida compacta inspirada en agentes CLI como Claude Code, prompt `❯`, acento naranja ANSI sin dependencias, etiquetas para errores/resultados y alias de comandos con `/` (por ejemplo, `/ayuda`). Respeta `NO_COLOR` y no añade interfaz web ni dependencias pesadas.
+- Se añadieron cuatro pruebas de interfaz de terminal (bienvenida, degradación sin color, secuencias ANSI y comando `/ayuda`). El total esperado es **89 pruebas**, pendiente de confirmar en GitHub Actions y en Termux; no se declara validado todavía.
 - Las aprobaciones ahora se reclaman mediante una actualización SQLite condicional antes de ejecutar efectos laterales; pruebas con dos conexiones verifican que una misma aprobación no se ejecute dos veces por una carrera.
 - Si el proceso se interrumpe después de reclamar una aprobación, esta no se reintenta automáticamente. La autorización local no protege contra un proceso que manipule directamente los archivos o la base de datos.
 - Se rechazan enlaces simbólicos para la base de datos, workspace y sidecars SQLite, incluido `-journal`.
