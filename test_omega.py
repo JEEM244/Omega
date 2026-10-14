@@ -470,3 +470,87 @@ class OmegaApprovalAndMemoryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NetMapStandaloneTests(unittest.TestCase):
+    def test_private_loopback_target_is_allowed(self):
+        import netmap
+        self.assertEqual(netmap.check_target("127.0.0.1"), "127.0.0.1")
+
+    def test_public_target_is_rejected(self):
+        import netmap
+        with self.assertRaises(Exception):
+            netmap.check_target("8.8.8.8")
+
+    def test_port_parser_deduplicates_and_sorts(self):
+        import netmap
+        self.assertEqual(netmap.parse_ports("80,22,80,8000-8001"), [22,80,8000,8001])
+
+    def test_port_parser_rejects_out_of_range(self):
+        import netmap
+        with self.assertRaises(Exception):
+            netmap.parse_ports("0,80")
+
+    def test_real_loopback_port_probe(self):
+        import netmap
+        import socket
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        port = listener.getsockname()[1]
+        try:
+            result = netmap.probe("127.0.0.1", port, 0.5)
+            self.assertEqual(result["state"], "open")
+        finally:
+            listener.close()
+
+
+class WireLabStandaloneTests(unittest.TestCase):
+    def test_decode_ethernet_ipv4_tcp(self):
+        import pcap_inspector
+        ethernet = bytes.fromhex("aabbccddeeff0011223344550800")
+        tcp = struct.pack("!HHIIHHHH", 54321, 443, 123, 0, 0x5002, 64240, 0, 0)
+        ip_len = 20 + len(tcp)
+        ip = struct.pack("!BBHHHBBH4s4s", 0x45, 0, ip_len, 1, 0, 64, 6, 0,
+                         socket.inet_aton("192.168.1.10"), socket.inet_aton("192.168.1.1"))
+        decoded = pcap_inspector.decode_frame(ethernet + ip + tcp, 1)
+        self.assertEqual(decoded["protocol"], "TCP")
+        self.assertEqual(decoded["dst_port"], 443)
+
+    def test_classic_pcap_reader_roundtrip(self):
+        import pcap_inspector
+        packet = bytes.fromhex("aabbccddeeff0011223344550800")
+        tcp = struct.pack("!HHIIHHHH", 12345, 80, 1, 0, 0x5002, 64000, 0, 0)
+        ip_len = 20 + len(tcp)
+        ip = struct.pack("!BBHHHBBH4s4s", 0x45, 0, ip_len, 1, 0, 64, 6, 0,
+                         socket.inet_aton("10.0.0.1"), socket.inet_aton("10.0.0.2"))
+        frame = packet + ip + tcp
+        header = b"\\xd4\\xc3\\xb2\\xa1" + struct.pack("<HHIIII", 2, 4, 0, 0, 65535, 1)
+        packet_header = struct.pack("<IIII", 1700000000, 500000, len(frame), len(frame))
+        with tempfile.NamedTemporaryFile(delete=False) as output:
+            path = output.name
+            output.write(header + packet_header + frame)
+        try:
+            records = list(pcap_inspector.iter_capture(path))
+            self.assertEqual(records[0][1]["format"], "PCAP")
+            self.assertEqual(records[1][1]["captured_length"], len(frame))
+            self.assertEqual(pcap_inspector.decode_frame(records[1][1]["data"], 1)["protocol"], "TCP")
+        finally:
+            os.unlink(path)
+
+    def test_wirelab_live_rejects_short_datagram(self):
+        import wirelab_live
+        self.assertIsNone(wirelab_live.parse_record_datagram(b"short"))
+
+    def test_wirelab_live_detects_raw_ip(self):
+        import wirelab_live
+        ipv4 = bytes.fromhex("4500002800010000400600007f0000017f000001")
+        self.assertEqual(wirelab_live.detect_linktype(ipv4), 101)
+
+    def test_pcapdroid_command_is_loopback_and_explicit(self):
+        import wirelab_live
+        cmd = wirelab_live.pcapdroid_command("start", 5123, "org.mozilla.firefox")
+        self.assertIn("127.0.0.1", cmd)
+        self.assertIn("udp_exporter", cmd)
+        self.assertIn("org.mozilla.firefox", cmd)
+        self.assertNotIn("shell", cmd)
