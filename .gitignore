@@ -1,0 +1,20 @@
+# Python bytecode and test caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# OMEGA local state (normally stored under ~/.omega_ai)
+.omega_ai/
+omega.sqlite3
+omega.sqlite3-wal
+omega.sqlite3-shm
+omega.sqlite3-journal
+workspace/
+
+# Packet captures may contain private traffic; do not commit them
+*.pcap
+*.pcapng
+
+# Local logs
+*.log
