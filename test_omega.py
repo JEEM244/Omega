@@ -959,7 +959,7 @@ class TerminalUiTests(unittest.TestCase):
         with redirect_stdout(output):
             omega_ai.print_terminal_banner("/tmp/omega-test", enabled=False)
         rendered = output.getvalue()
-        self.assertIn("Ω  OMEGA AI", rendered)
+        self.assertIn("✳  OMEGA AI", rendered)
         self.assertIn("offline", rendered)
         self.assertIn("sin root", rendered)
         self.assertIn("/tmp/omega-test", rendered)
@@ -967,3 +967,15 @@ class TerminalUiTests(unittest.TestCase):
 
     def test_terminal_style_respects_disabled_color(self):
         self.assertEqual(omega_ai.terminal_style("❯ ", "orange", enabled=False), "❯ ")
+
+    def test_terminal_style_emits_ansi_when_enabled(self):
+        styled = omega_ai.terminal_style("OMEGA", "orange", enabled=True)
+        self.assertTrue(styled.startswith("\033[38;5;208m"))
+        self.assertTrue(styled.endswith("\033[0m"))
+
+    def test_slash_prefixed_help_command_works(self):
+        with tempfile.TemporaryDirectory() as home:
+            output = io.StringIO()
+            with patch("builtins.input", side_effect=["/ayuda", "salir"]), redirect_stdout(output):
+                omega_ai.run_repl(home)
+            self.assertIn("Comandos del agente:", output.getvalue())
