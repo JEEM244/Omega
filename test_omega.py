@@ -262,10 +262,12 @@ class OmegaApprovalAndMemoryTests(unittest.TestCase):
         home = Path(self.temp.name) / "repl-id-help"
         answers = ["auditar", "aprobar ID", "salir"]
         output = io.StringIO()
-        with patch("builtins.input", side_effect=answers), redirect_stdout(output):
+        errors = io.StringIO()
+        with patch("builtins.input", side_effect=answers), redirect_stdout(output), patch("sys.stderr", errors):
             omega_ai.run_repl(home)
-        self.assertIn("Sustituye ID por el número real", output.getvalue())
-        self.assertIn("aprobar 1", output.getvalue())
+        self.assertIn("Sustituye ID por el número real", errors.getvalue())
+        self.assertIn("aprobar 1", errors.getvalue())
+        self.assertIn("usa el número real mostrado", output.getvalue())
 
     def test_repl_executes_after_exact_si(self):
         home = Path(self.temp.name) / "repl-yes"
