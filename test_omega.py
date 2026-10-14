@@ -740,6 +740,38 @@ class PcapHardeningRegressionTests(unittest.TestCase):
         self.assertEqual(packet["data"], b"test")
 
 
+    def test_pcapng_rejects_packet_captured_length_greater_than_original(self):
+        import pcap_inspector
+        shb_body = b"\\x4d\\x3c\\x2b\\x1a" + struct.pack("<HHq", 1, 0, -1)
+        shb = struct.pack("<II", 0x0A0D0D0A, 28) + shb_body + struct.pack("<I", 28)
+        idb_body = struct.pack("<HHI", 1, 0, 65535) + struct.pack("<HH", 0, 0)
+        idb = self._pcapng_block(1, idb_body)
+        epb_body = struct.pack("<IIIII", 0, 0, 0, 4, 3) + b"test"
+        epb = self._pcapng_block(6, epb_body)
+        with tempfile.NamedTemporaryFile() as capture:
+            capture.write(shb + idb + epb)
+            capture.flush()
+            items = pcap_inspector.iter_capture(capture.name)
+            next(items)
+            with self.assertRaisesRegex(ValueError, "exceeds original length"):
+                list(items)
+
+    def test_pcapng_rejects_truncated_interface_timestamp_option(self):
+        import pcap_inspector
+        shb_body = b"\\x4d\\x3c\\x2b\\x1a" + struct.pack("<HHq", 1, 0, -1)
+        shb = struct.pack("<II", 0x0A0D0D0A, 28) + shb_body + struct.pack("<I", 28)
+        # Option says one byte of value but the block ends immediately after its header.
+        idb_body = struct.pack("<HHI", 1, 0, 65535) + struct.pack("<HH", 9, 1)
+        idb = self._pcapng_block(1, idb_body)
+        with tempfile.NamedTemporaryFile() as capture:
+            capture.write(shb + idb)
+            capture.flush()
+            items = pcap_inspector.iter_capture(capture.name)
+            next(items)
+            with self.assertRaisesRegex(ValueError, "option truncated"):
+                next(items)
+
+
 class ApprovalRaceRegressionTests(unittest.TestCase):
     def test_sqlite_journal_symlink_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
