@@ -2,42 +2,43 @@
 
 Actualizado: 2026-10-14.
 
-## Repositorio y regla de trabajo
+## Repositorio oficial y reglas
 
-- Repositorio oficial: https://github.com/JEEM244/Omega
-- Rama: `main`.
-- OMEGA se desarrolla aquí, separado de `herramientas-termux`.
-- El prototipo anterior y su historial quedan conservados en https://github.com/JEEM244/herramientas-termux/tree/omega-ai-prototype.
-- PR anterior, solo como referencia histórica; no fusionar ni eliminar para esta separación: https://github.com/JEEM244/herramientas-termux/pull/1
-- No afirmar compatibilidad real con Termux hasta validar en un dispositivo Android.
-- Escaneo y captura requieren autorización; la captura además requiere aceptar la VPN de PCAPdroid.
+- Repositorio independiente: https://github.com/JEEM244/Omega
+- Rama de desarrollo: `main`.
+- El prototipo anterior queda preservado en https://github.com/JEEM244/herramientas-termux/tree/omega-ai-prototype y su PR histórico permanece sin fusionar: https://github.com/JEEM244/herramientas-termux/pull/1
+- El trabajo nuevo de OMEGA debe continuar en este repositorio solamente.
+- No afirmar que ya funciona en Android/Termux real hasta validar en el dispositivo.
+- Escaneo de red solo con autorización; captura solo con autorización y permiso VPN de PCAPdroid.
 
-## Estado importado
+## Estado actual
 
-Se importó la referencia OMEGA AI 0.3.0 con lenguaje declarativo, variables/condiciones, memoria SQLite, historial, clasificador Naive Bayes local y cola de acciones con aprobación explícita.
+- Núcleo OMEGA AI 0.3.0 importado: lenguaje declarativo, variables/condiciones, aprobaciones explícitas, memoria SQLite, historial, planificador simbólico y clasificador Naive Bayes pequeño entrenado localmente.
+- Archivos en el repo: `omega_ai.py`, `test_omega.py`, `OMEGA.md`, `README.md`, `OMEGA_PROGRESS.md`, `demo.omg`, `netmap.py`, `pcap_inspector.py`, `wirelab_live.py`, `.github/workflows/omega-tests.yml`, `security_lab.py` (shim compatible para pruebas históricas).
+- Corrección de integración aplicada a NetMap: exporta `render_text`, que el núcleo usa para reportar el escaneo.
 
-Archivos actuales:
-- `omega_ai.py`: núcleo y REPL.
-- `test_omega.py`: pruebas unitarias.
-- `OMEGA.md`: documentación.
-- `README.md`: guía del repositorio.
-- `demo.omg`: programa demostrativo.
+## CI
+
+- Último commit con CI verificado: `c1b5cffd3a8e39d645b5f151122d8e77d0a5b377`.
+- GitHub Actions run `38561282731`: compilación y suite OMEGA finalizaron con `success`.
+- Ejecución: https://github.com/JEEM244/Omega/actions/runs/38561282731
+- CI comprueba sintaxis y 52 pruebas unitarias OMEGA en Ubuntu. No valida por sí sola Android ni la captura real PCAPdroid.
 
 ## Próximas tareas
 
-1. Comprobar el contenido real de los archivos importados y revisar el diff respecto a la fuente histórica.
-2. Añadir los adaptadores requeridos por las integraciones opcionales (`netmap.py`, `pcap_inspector.py`, `wirelab_live.py`) usando commits Git de bajo nivel, si la API de archivos sigue fallando.
-3. Añadir un workflow CI exclusivo de este repositorio.
-4. Ejecutar el CI: compilación y `python -m unittest -v test_omega`.
-5. Revisar seguridad del parser, aprobaciones, rutas, SQLite y límites del laboratorio.
-6. En Termux, ejecutar:
+1. Inspeccionar dependencias y diferencias del código importado; la migración está orientada a preservar el MVP, pero los adaptadores deben recibir pruebas propias.
+2. Añadir pruebas de NetMap/WireLab y CI completo del repo independiente, comprobar salida de los tests del núcleo.
+3. Revisar parser, autorización, SQLite, rutas, manejo de PCAP y captura.
+4. El usuario ejecutará dentro de Termux:
    ```bash
+   git clone https://github.com/JEEM244/Omega.git
+   cd Omega
    python -m py_compile omega_ai.py test_omega.py netmap.py pcap_inspector.py wirelab_live.py
    python -m unittest -v test_omega
    python omega_ai.py
    ```
-7. Resolver errores con el resultado real del dispositivo. No declarar listo hasta validar Android.
+5. Corregir fallos según la salida real del teléfono; mantener explícito qué se comprobó en CI y qué no.
 
-## Regla de recuperación
+## Pausa / recuperación
 
-Antes de pausar, actualizar esta bitácora con SHA de commit, estado exacto de Actions y siguiente paso accionable. Mantener intacto el repo histórico.
+Antes de detener trabajo, actualizar este archivo con el SHA más reciente, estado real de GitHub Actions y un siguiente paso accionable. No borrar ni fusionar el repo histórico.
