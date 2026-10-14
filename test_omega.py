@@ -258,6 +258,15 @@ class OmegaApprovalAndMemoryTests(unittest.TestCase):
         finally:
             reopened.close()
 
+    def test_repl_explains_that_id_is_a_placeholder(self):
+        home = Path(self.temp.name) / "repl-id-help"
+        answers = ["auditar", "aprobar ID", "salir"]
+        output = io.StringIO()
+        with patch("builtins.input", side_effect=answers), redirect_stdout(output):
+            omega_ai.run_repl(home)
+        self.assertIn("Sustituye ID por el número real", output.getvalue())
+        self.assertIn("aprobar 1", output.getvalue())
+
     def test_repl_executes_after_exact_si(self):
         home = Path(self.temp.name) / "repl-yes"
         answers = ['recordar "safe" = "value"', "aprobar 1", "SI", "salir"]
