@@ -828,3 +828,20 @@ class ApprovalRaceRegressionTests(unittest.TestCase):
                 self.assertEqual(check.get_action(action_id)["status"], "approved")
             finally:
                 check.close()
+
+
+class WireLabBoundedCaptureTests(unittest.TestCase):
+    def test_live_receiver_requires_finite_capture_limits(self):
+        import wirelab_live
+        invalid_arguments = (
+            ["--seconds", "0", "--max-packets", "0"],
+            ["--seconds", "61", "--max-packets", "10"],
+            ["--seconds", "10", "--max-packets", "501"],
+        )
+        for arguments in invalid_arguments:
+            with self.subTest(arguments=arguments):
+                with patch("sys.argv", ["wirelab_live.py", *arguments]):
+                    with patch("sys.stderr", io.StringIO()):
+                        with self.assertRaises(SystemExit) as raised:
+                            wirelab_live.main()
+                self.assertEqual(raised.exception.code, 2)
