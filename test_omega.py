@@ -469,9 +469,6 @@ class OmegaApprovalAndMemoryTests(unittest.TestCase):
             self.store.execute_approved(action_id, approved=True)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class NetMapStandaloneTests(unittest.TestCase):
     def test_private_loopback_target_is_allowed(self):
