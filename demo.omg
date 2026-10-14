@@ -1,0 +1,18 @@
+OMEGA 0.3
+# Las variables y las condiciones se resuelven sin efectos secundarios.
+DEFINIR saludo = "Hola desde OMEGA"
+DEFINIR a = 20
+DEFINIR b = 22
+MOSTRAR $saludo
+MOSTRAR "La suma de $a y $b se calculara con aprobacion"
+SUMAR $a $b
+SI $a < $b ENTONCES MOSTRAR "La condicion se cumplio"
+ESTADO
+AUDITAR
+COMPACTAR
+ESCANEAR "127.0.0.1" PUERTOS "22,80" AUTORIZADO
+APRENDER "quiero revisar el estado del sistema" = diagnostico
+APRENDER "quiero guardar un recuerdo" = memoria
+RECORDAR "primer_objetivo" = "Construir una IA propia en Termux"
+LEER_MEMORIA "primer_objetivo"
+CREAR "demo_generado.txt" = "OMEGA AI: primer archivo creado con aprobacion explicita."
