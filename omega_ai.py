@@ -788,14 +788,54 @@ def parse_key_value(text: str) -> tuple[str, str]:
     return key, value
 
 
+def terminal_color_enabled() -> bool:
+    """Use ANSI styling only in interactive terminals and respect NO_COLOR."""
+    return "NO_COLOR" not in os.environ and bool(
+        hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+    )
+
+
+def terminal_style(text: str, color: str, enabled: bool | None = None) -> str:
+    """Small dependency-free ANSI palette for the interactive terminal UI."""
+    if enabled is None:
+        enabled = terminal_color_enabled()
+    palette = {
+        "orange": "38;5;208",
+        "muted": "90",
+        "green": "32",
+        "yellow": "33",
+        "red": "31",
+        "cyan": "36",
+        "bold": "1",
+    }
+    code = palette.get(color)
+    if not enabled or code is None:
+        return text
+    return f"\\033[{code}m{text}\\033[0m"
+
+
+def print_terminal_banner(home: str | Path, enabled: bool | None = None) -> None:
+    """Render a compact Claude-Code-inspired welcome screen without dependencies."""
+    if enabled is None:
+        enabled = terminal_color_enabled()
+    print(terminal_style("Ω  OMEGA AI", "orange", enabled))
+    print(terminal_style(f"v{VERSION} · asistente local para Termux", "muted", enabled))
+    print(terminal_style("offline  ·  sin root  ·  memoria SQLite local", "green", enabled))
+    print(terminal_style(f"Directorio de datos: {Path(home)}", "muted", enabled))
+    print()
+    print("Escribe 'ayuda' para ver los comandos.")
+    print(terminal_style("─" * min(max(shutil.get_terminal_size(fallback=(80, 24)).columns, 32), 56), "muted", enabled))
+
+
 def run_repl(home: str | Path) -> int:
     store = OmegaStore(home)
-    print(f"OMEGA AI {VERSION} | núcleo simbólico propio | offline | sin root")
-    print(f"Memoria: {store.db_path}\nEscribe 'ayuda' para ver los comandos.")
+    color = terminal_color_enabled()
+    print_terminal_banner(store.home, color)
+    print(terminal_style(f"Memoria persistente: {store.db_path}", "muted", color))
     try:
         while True:
             try:
-                raw = input("omega> ").strip()
+                raw = input(terminal_style("❯ ", "orange", color)).strip()
             except EOFError:
                 print()
                 break
@@ -894,7 +934,7 @@ def run_repl(home: str | Path) -> int:
                     if confirm != "SI":
                         print("No autorizada. No se ejecutó.")
                     else:
-                        print("RESULTADO:", store.execute_approved(action_id, approved=True))
+                        print(terminal_style("✓ RESULTADO", "green", color) + ":", store.execute_approved(action_id, approved=True))
                 elif command == "rechazar":
                     if not rest.strip().isdigit(): raise OmegaError("Sustituye ID por el número real de la operación; ejemplo: rechazar 1")
                     print(store.reject(int(rest.strip())))
@@ -917,7 +957,7 @@ def run_repl(home: str | Path) -> int:
                 else:
                     print("No reconozco ese comando. Escribe 'ayuda'.")
             except (OmegaError, OSError, UnicodeError) as exc:
-                print(f"ERROR: {exc}", file=sys.stderr)
+                print(terminal_style("ERROR", "red", color) + f": {exc}", file=sys.stderr)
     except KeyboardInterrupt:
         print("\nSesión detenida.")
     finally:
