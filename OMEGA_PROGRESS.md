@@ -18,17 +18,18 @@ Actualizado: 2026-10-14.
 - Si el proceso se interrumpe después de reclamar una aprobación, esta no se reintenta automáticamente. La autorización local no protege contra un proceso que manipule directamente los archivos o la base de datos.
 - Se rechazan enlaces simbólicos para la base de datos, workspace y sidecars SQLite, incluido `-journal`.
 - `pcap_inspector.py`: valida longitudes capturadas/originales, snaplen y fracciones de timestamp en PCAP; valida bloques y opciones PCAPNG, respeta la resolución de timestamp `if_tsresol` y reporta paquetes malformados en vez de omitirlos silenciosamente. El decodificador UDP rechaza longitudes inválidas o truncadas.
-- `test_omega.py`: **82 pruebas automatizadas** que cubren lenguaje, memoria, autorización, carreras, enlaces simbólicos, NetMap, PCAP/PCAPNG y exportación de PCAPdroid.
+- `test_omega.py`: **83 pruebas automatizadas** que cubren lenguaje, memoria, autorización, carreras, enlaces simbólicos, NetMap, PCAP/PCAPNG, exportación de PCAPdroid y mensajes claros de aprobación.
 - `netmap.py`: escáner TCP acotado para IPv4 privada/loopback/link-local.
 - `wirelab_live.py`: receptor UDP en loopback para exportación PCAPdroid; ahora exige duración de 1–60 segundos y 1–500 paquetes, incluso si se ejecuta de forma independiente.
 - `README.md`, `OMEGA.md`, `demo.omg` y `.github/workflows/omega-tests.yml` son parte del proyecto independiente.
 
 ## Validación CI
 
-- Commit de código probado: `8a8c1bb70929e30d1453b3581d8720a0e4445113`.
-- GitHub Actions run **38606125912**: `success`; compilación y **82 pruebas** completadas correctamente.
-- Enlace: https://github.com/JEEM244/Omega/actions/runs/38606125912
-- La documentación y la bitácora actualizadas también pasaron CI en run **38606276955**: https://github.com/JEEM244/Omega/actions/runs/38606276955.
+- Commit de código probado: `70ef0ce15b4122860c008036e1022f8c603a622b`.
+- GitHub Actions run **38607484217**: `success`; compilación y **83 pruebas** completadas correctamente en Python **3.10, 3.11, 3.12 y 3.13**.
+- Enlace: https://github.com/JEEM244/Omega/actions/runs/38607484217
+- Se añadió una regresión que comprueba que el REPL explique que `ID` es un marcador y debe sustituirse por el número real, por ejemplo `aprobar 1`.
+- `TERMUX_TESTING.md` documenta una secuencia manual por etapas para aprobación, auditoría y memoria persistente; la captura real queda separada.
 - Esto no demuestra todavía el permiso VPN, la captura real, ni compatibilidad con todos los Android.
 
 ## Pendientes reales
