@@ -255,7 +255,8 @@ class OmegaStore:
             raise OmegaError("El workspace no puede ser un enlace simbólico.")
         if self.db_path.is_symlink():
             raise OmegaError("La base de datos no puede ser un enlace simbólico.")
-        for sidecar in (Path(str(self.db_path) + "-wal"), Path(str(self.db_path) + "-shm")):
+        for suffix in ("-wal", "-shm", "-journal"):
+            sidecar = Path(str(self.db_path) + suffix)
             if sidecar.is_symlink():
                 raise OmegaError("Los archivos auxiliares de SQLite no pueden ser enlaces simbólicos.")
         self.workspace.mkdir(parents=True, exist_ok=True)
@@ -401,6 +402,17 @@ class OmegaStore:
             raise OmegaError(f"No existe la operación #{action_id}.")
         if row["status"] != "pending":
             raise OmegaError(f"La operación #{action_id} ya está en estado {row['status']}.")
+        # Claim the one-shot approval atomically before any side effect. If two
+        # OMEGA processes race, only the process that changes pending -> approved
+        # may proceed. A crash leaves finished_at NULL, which signals an
+        # interrupted operation and fails closed rather than allowing replay.
+        claimed = self.db.execute(
+            "UPDATE approvals SET status='approved' WHERE id=? AND status='pending'",
+            (action_id,),
+        )
+        self.db.commit()
+        if claimed.rowcount != 1:
+            raise OmegaError(f"La operación #{action_id} ya no está pendiente; no se ejecutó.")
         kind = row["kind"]
         try:
             args = json.loads(row["args_json"])
