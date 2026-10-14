@@ -667,3 +667,74 @@ class OmegaFileSafetyEdgeTests(unittest.TestCase):
         with self.assertRaises(omega_ai.OmegaError):
             self.store.execute_approved(action_id, approved=True)
         self.assertEqual(self.store.get_action(action_id)["status"], "failed")
+
+
+
+class PcapHardeningRegressionTests(unittest.TestCase):
+    @staticmethod
+    def _pcap_global_header(snaplen=65535):
+        return b"\\xd4\\xc3\\xb2\\xa1" + struct.pack("<HHIIII", 2, 4, 0, 0, snaplen, 1)
+
+    @staticmethod
+    def _pcapng_block(block_type, body):
+        total = 12 + len(body)
+        return struct.pack("<II", block_type, total) + body + struct.pack("<I", total)
+
+    def test_classic_pcap_rejects_timestamp_fraction_out_of_range(self):
+        import pcap_inspector
+        with tempfile.NamedTemporaryFile() as capture:
+            capture.write(self._pcap_global_header())
+            capture.write(struct.pack("<IIII", 1, 1_000_000, 0, 0))
+            capture.flush()
+            packets = pcap_inspector.iter_capture(capture.name)
+            self.assertEqual(next(packets)[1]["format"], "PCAP")
+            with self.assertRaisesRegex(ValueError, "fraction out of range"):
+                next(packets)
+
+    def test_classic_pcap_rejects_captured_length_greater_than_original(self):
+        import pcap_inspector
+        with tempfile.NamedTemporaryFile() as capture:
+            capture.write(self._pcap_global_header())
+            capture.write(struct.pack("<IIII", 1, 0, 1, 0) + b"x")
+            capture.flush()
+            packets = pcap_inspector.iter_capture(capture.name)
+            next(packets)
+            with self.assertRaisesRegex(ValueError, "exceeds original length"):
+                next(packets)
+
+    def test_classic_pcap_rejects_capture_length_above_snaplen(self):
+        import pcap_inspector
+        with tempfile.NamedTemporaryFile() as capture:
+            capture.write(self._pcap_global_header(snaplen=1))
+            capture.write(struct.pack("<IIII", 1, 0, 2, 2) + b"xx")
+            capture.flush()
+            packets = pcap_inspector.iter_capture(capture.name)
+            next(packets)
+            with self.assertRaisesRegex(ValueError, "exceeds snaplen"):
+                next(packets)
+
+    def test_udp_decoder_rejects_length_smaller_than_header(self):
+        import pcap_inspector
+        frame = struct.pack("!HHHH", 53, 53, 4, 0)
+        decoded = pcap_inspector.decode_transport(frame, 0, 17, "192.0.2.1", "192.0.2.2", len(frame))
+        self.assertEqual(decoded["info"], "Invalid UDP length")
+
+    def test_pcapng_uses_interface_timestamp_resolution(self):
+        import pcap_inspector
+        shb_body = b"\\x4d\\x3c\\x2b\\x1a" + struct.pack("<HHq", 1, 0, -1)
+        shb = struct.pack("<II", 0x0A0D0D0A, 28) + shb_body + struct.pack("<I", 28)
+        idb_body = (
+            struct.pack("<HHI", 1, 0, 65535)
+            + struct.pack("<HHB", 9, 1, 9) + b"\\x00\\x00\\x00"
+            + struct.pack("<HH", 0, 0)
+        )
+        idb = self._pcapng_block(1, idb_body)
+        epb_body = struct.pack("<IIIII", 0, 0, 1_000_000_000, 4, 4) + b"test"
+        epb = self._pcapng_block(6, epb_body)
+        with tempfile.NamedTemporaryFile() as capture:
+            capture.write(shb + idb + epb)
+            capture.flush()
+            items = list(pcap_inspector.iter_capture(capture.name))
+        packet = next(item for kind, item in items if kind == "packet")
+        self.assertEqual(packet["timestamp"], 1.0)
+        self.assertEqual(packet["data"], b"test")
