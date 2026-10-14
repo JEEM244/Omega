@@ -738,3 +738,63 @@ class PcapHardeningRegressionTests(unittest.TestCase):
         packet = next(item for kind, item in items if kind == "packet")
         self.assertEqual(packet["timestamp"], 1.0)
         self.assertEqual(packet["data"], b"test")
+
+
+class ApprovalRaceRegressionTests(unittest.TestCase):
+    def test_sqlite_journal_symlink_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            home = root / "omega-home"
+            home.mkdir()
+            outside = root / "outside-journal"
+            outside.write_bytes(b"preserve")
+            (home / "omega.sqlite3-journal").symlink_to(outside)
+            with self.assertRaisesRegex(omega_ai.OmegaError, "auxiliares de SQLite"):
+                omega_ai.OmegaStore(home)
+            self.assertEqual(outside.read_bytes(), b"preserve")
+
+    def test_two_process_connections_cannot_execute_one_approval_twice(self):
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp) / "omega-home"
+            first = omega_ai.OmegaStore(home)
+            second = omega_ai.OmegaStore(home)
+            try:
+                action_id = first.enqueue("file_create", {
+                    "filename": "one-shot.txt", "content": "only once"
+                })
+                barrier = threading.Barrier(2)
+                first_get = first.get_action
+                second_get = second.get_action
+
+                def synchronized_first(action_id):
+                    row = first_get(action_id)
+                    barrier.wait(timeout=5)
+                    return row
+
+                def synchronized_second(action_id):
+                    row = second_get(action_id)
+                    barrier.wait(timeout=5)
+                    return row
+
+                first.get_action = synchronized_first
+                second.get_action = synchronized_second
+
+                def execute(store):
+                    try:
+                        return ("ok", store.execute_approved(action_id, approved=True))
+                    except omega_ai.OmegaError as exc:
+                        return ("error", str(exc))
+
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    results = list(pool.map(execute, (first, second)))
+
+                self.assertEqual(sum(status == "ok" for status, _ in results), 1)
+                self.assertEqual(sum(status == "error" for status, _ in results), 1)
+                self.assertEqual((first.workspace / "one-shot.txt").read_text(), "only once")
+                self.assertEqual(first.get_action(action_id)["status"], "approved")
+            finally:
+                first.close()
+                second.close()
