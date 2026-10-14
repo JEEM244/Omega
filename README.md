@@ -52,3 +52,7 @@ El escaneo y la captura son operaciones sensibles que solo deben usarse en dispo
 ## Estado de pruebas
 
 GitHub Actions compila el núcleo y ejecuta `test_omega.py`. Las pruebas automatizadas no sustituyen la validación en Android real. No se debe marcar como listo para producción hasta verificarlo en Termux.
+
+## Independencia del proyecto
+
+OMEGA se desarrolla en este repositorio, por separado de `herramientas-termux`. El historial anterior del prototipo queda conservado en https://github.com/JEEM244/herramientas-termux/tree/omega-ai-prototype.
