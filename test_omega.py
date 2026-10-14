@@ -911,3 +911,43 @@ class WireLabBoundedCaptureTests(unittest.TestCase):
                         with self.assertRaises(SystemExit) as raised:
                             wirelab_live.main()
                 self.assertEqual(raised.exception.code, 2)
+
+
+    def test_pcapdroid_stop_is_attempted_when_receiver_raises(self):
+        import wirelab_live
+
+        class BrokenSocket:
+            def setsockopt(self, *args):
+                pass
+
+            def bind(self, *args):
+                pass
+
+            def settimeout(self, *args):
+                pass
+
+            def recvfrom(self, *args):
+                raise OSError("simulated receiver failure")
+
+            def close(self):
+                self.closed = True
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "failed-capture.pcap"
+            fake_socket = BrokenSocket()
+            with patch(
+                "sys.argv",
+                ["wirelab_live.py", "--seconds", "1", "--max-packets", "10",
+                 "--launch-pcapdroid", "--output", str(output)],
+            ), patch("wirelab_live.socket.socket", return_value=fake_socket), patch(
+                "wirelab_live.shutil.which", return_value="/system/bin/am"
+            ), patch(
+                "wirelab_live.subprocess.run", return_value=Mock(returncode=0)
+            ) as run:
+                with self.assertRaisesRegex(OSError, "simulated receiver failure"):
+                    wirelab_live.main()
+
+            self.assertTrue(fake_socket.closed)
+            self.assertEqual(run.call_count, 2)
+            stop_command = run.call_args_list[-1].args[0]
+            self.assertIn("stop", stop_command)
