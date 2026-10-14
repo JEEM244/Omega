@@ -583,7 +583,21 @@ class OmegaStore:
             raise OmegaError(f"No existe la operación #{action_id}.")
         if row["status"] != "pending":
             raise OmegaError(f"La operación #{action_id} ya está en estado {row['status']}.")
-        self.finish(action_id, "rejected", "Rechazada por el usuario")
+        # Claim rejection atomically so it cannot overwrite an approval that
+        # another process already claimed and executed.
+        result = "Rechazada por el usuario"
+        claimed = self.db.execute(
+            "UPDATE approvals SET status='rejected',finished_at=?,result=? "
+            "WHERE id=? AND status='pending'",
+            (now_utc(), result, action_id),
+        )
+        self.db.commit()
+        if claimed.rowcount != 1:
+            current = self.get_action(action_id)
+            if current is None:
+                raise OmegaError(f"No existe la operación #{action_id}.")
+            raise OmegaError(f"La operación #{action_id} ya no está pendiente; no se rechazó.")
+        self.log("rejected", f"id={action_id}; {result}")
         return f"Operación #{action_id} rechazada; no se ejecutó."
 
 
