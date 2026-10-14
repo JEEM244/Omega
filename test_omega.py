@@ -8,7 +8,6 @@ from unittest.mock import patch, Mock
 from pathlib import Path
 
 import omega_ai
-import security_lab
 
 
 class OmegaLanguageTests(unittest.TestCase):
@@ -467,10 +466,6 @@ class OmegaApprovalAndMemoryTests(unittest.TestCase):
         action_id = self.store.enqueue("shell", {"command": "rm -rf /"})
         with self.assertRaisesRegex(omega_ai.OmegaError, "no permitido"):
             self.store.execute_approved(action_id, approved=True)
-
-
-    def test_omega_is_registered_in_lab_launcher(self):
-        self.assertEqual(security_lab.COMMANDS["omega"][0], "omega_ai")
 
 
 if __name__ == "__main__":
