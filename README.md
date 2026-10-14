@@ -25,6 +25,10 @@ aprobar ID
 
 Sustituye `ID` por el número mostrado. Antes de ejecutar una acción, OMEGA pide escribir exactamente `SI`. Revisa la operación antes de autorizarla.
 
+## Validación manual en Termux
+
+Consulta [`TERMUX_TESTING.md`](TERMUX_TESTING.md) para verificar paso a paso la aprobación individual, la auditoría local y la memoria persistente. La captura PCAPdroid se prueba por separado y requiere consentimiento VPN explícito de Android.
+
 ## Diseño
 
 - Lenguaje declarativo propio; variables, comparaciones y acciones acotadas.
