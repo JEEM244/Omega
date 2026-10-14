@@ -73,7 +73,7 @@ La inspección OMEGA se apoya en pcap_inspector.py y solo lee archivos PCAP/PCAP
 - El método interno de ejecución exige una confirmación explícita de aprobación; el REPL además pide escribir exactamente SI. El historial es una consulta de solo lectura.
 - Solo hay un conjunto cerrado de tipos de acción permitidos.
 - La memoria persistente por sí sola no equivale a aprendizaje. OMEGA 0.3 incorpora un clasificador de intención Naive Bayes multinomial pequeño, entrenado desde cero con ejemplos locales aprobados. No descarga modelos ni consulta servicios externos. Requiere ejemplos de al menos dos intenciones distintas; con menos datos el planificador usa sus reglas transparentes. El aprendizaje es limitado y no equivale a inteligencia general.
-- Las aprobaciones son locales; no deben tratarse como una barrera contra otro proceso o usuario con acceso a los mismos archivos.
+- Cada aprobación se reclama con una actualización SQLite condicional antes de cualquier efecto lateral, evitando ejecutar dos veces la misma operación por carreras entre procesos. Si el proceso se interrumpe después de reclamarla, no se reintenta automáticamente. La aprobación local no protege frente a otro proceso con acceso a los archivos que manipule directamente la base de datos.
 
 ## Aprendizaje local
 
