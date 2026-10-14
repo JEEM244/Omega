@@ -47,7 +47,7 @@ Sustituye `ID` por el número mostrado. Antes de ejecutar una acción, OMEGA pid
 
 ## Límites de seguridad
 
-El escaneo y la captura son operaciones sensibles que solo deben usarse en dispositivos/redes propios o expresamente autorizados. La captura requiere configurar PCAPdroid y conceder el permiso VPN de Android. OMEGA es un prototipo: su aprobación local no es una frontera de seguridad frente a procesos que compartan la misma cuenta.
+El escaneo y la captura son operaciones sensibles que solo deben usarse en dispositivos/redes propios o expresamente autorizados. La captura requiere configurar PCAPdroid y conceder el permiso VPN de Android. OMEGA reclama cada aprobación de forma atómica para evitar la doble ejecución accidental; si el proceso se interrumpe tras reclamarla, no se reintenta automáticamente. La aprobación local no protege frente a otro proceso con acceso a los archivos que manipule directamente la base de datos.
 
 ## Estado de pruebas
 
