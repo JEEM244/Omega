@@ -18,17 +18,17 @@ Actualizado: 2026-10-14.
 - Si el proceso se interrumpe después de reclamar una aprobación, esta no se reintenta automáticamente. La autorización local no protege contra un proceso que manipule directamente los archivos o la base de datos.
 - Se rechazan enlaces simbólicos para la base de datos, workspace y sidecars SQLite, incluido `-journal`.
 - `pcap_inspector.py`: valida longitudes capturadas/originales, snaplen y fracciones de timestamp en PCAP; valida bloques y opciones PCAPNG, respeta la resolución de timestamp `if_tsresol` y reporta paquetes malformados en vez de omitirlos silenciosamente. El decodificador UDP rechaza longitudes inválidas o truncadas.
-- `test_omega.py`: **79 pruebas automatizadas** que cubren lenguaje, memoria, autorización, carreras, enlaces simbólicos, NetMap, PCAP/PCAPNG y exportación de PCAPdroid.
+- `test_omega.py`: **82 pruebas automatizadas** que cubren lenguaje, memoria, autorización, carreras, enlaces simbólicos, NetMap, PCAP/PCAPNG y exportación de PCAPdroid.
 - `netmap.py`: escáner TCP acotado para IPv4 privada/loopback/link-local.
-- `wirelab_live.py`: receptor UDP en loopback para exportación PCAPdroid.
+- `wirelab_live.py`: receptor UDP en loopback para exportación PCAPdroid; ahora exige duración de 1–60 segundos y 1–500 paquetes, incluso si se ejecuta de forma independiente.
 - `README.md`, `OMEGA.md`, `demo.omg` y `.github/workflows/omega-tests.yml` son parte del proyecto independiente.
 
 ## Validación CI
 
-- Commit de código probado: `ffada11d8200bf01ea0ea42dfb0b9c3135af51b9`.
-- GitHub Actions run **38605657288**: `success`; compilación y **79 pruebas** completadas correctamente.
-- Enlace: https://github.com/JEEM244/Omega/actions/runs/38605657288
-- La documentación también pasó CI en run **38605795774**: https://github.com/JEEM244/Omega/actions/runs/38605795774
+- Commit de código probado: `8a8c1bb70929e30d1453b3581d8720a0e4445113`.
+- GitHub Actions run **38606125912**: `success`; compilación y **82 pruebas** completadas correctamente.
+- Enlace: https://github.com/JEEM244/Omega/actions/runs/38606125912
+- La documentación previa también pasó CI en run **38605795774**: https://github.com/JEEM244/Omega/actions/runs/38605795774. Los cambios de documentación de captura se validarán con el siguiente run.
 - Esto no demuestra todavía el permiso VPN, la captura real, ni compatibilidad con todos los Android.
 
 ## Pendientes reales
