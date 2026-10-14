@@ -34,7 +34,7 @@ Sustituye `ID` por el número mostrado. Antes de ejecutar una acción, OMEGA pid
 - Límites de recursos para programas, memoria, historial, colas y tareas de laboratorio.
 - NetMap para escaneos TCP conectando normalmente a IPs IPv4 privadas/loopback/link-local autorizadas.
 - WireLab para inspección local de PCAP/PCAPNG.
-- Captura opcional mediante PCAPdroid y consentimiento VPN de Android.
+- Captura opcional mediante PCAPdroid y consentimiento VPN de Android; duración y cantidad de paquetes son obligatoriamente limitadas (máximo 60 segundos/500 paquetes), incluso al usar el receptor independiente.
 
 ## Estructura
 
