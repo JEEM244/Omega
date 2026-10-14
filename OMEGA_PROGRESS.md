@@ -18,17 +18,18 @@ Actualizado: 2026-10-14.
 - Si el proceso se interrumpe después de reclamar una aprobación, esta no se reintenta automáticamente. La autorización local no protege contra un proceso que manipule directamente los archivos o la base de datos.
 - Se rechazan enlaces simbólicos para la base de datos, workspace y sidecars SQLite, incluido `-journal`.
 - `pcap_inspector.py`: valida longitudes capturadas/originales, snaplen y fracciones de timestamp en PCAP; valida bloques y opciones PCAPNG, respeta la resolución de timestamp `if_tsresol` y reporta paquetes malformados en vez de omitirlos silenciosamente. El decodificador UDP rechaza longitudes inválidas o truncadas.
-- `test_omega.py`: **84 pruebas automatizadas** que cubren lenguaje, memoria, autorización, carreras de aprobación/rechazo, enlaces simbólicos, NetMap, PCAP/PCAPNG, exportación de PCAPdroid y mensajes claros de aprobación.
+- `test_omega.py`: **85 pruebas automatizadas** que cubren lenguaje, memoria, autorización, carreras de aprobación/rechazo, errores de limpieza de PCAPdroid, enlaces simbólicos, NetMap y PCAP/PCAPNG.
 - `netmap.py`: escáner TCP acotado para IPv4 privada/loopback/link-local.
 - `wirelab_live.py`: receptor UDP en loopback para exportación PCAPdroid; ahora exige duración de 1–60 segundos y 1–500 paquetes, incluso si se ejecuta de forma independiente.
 - `README.md`, `OMEGA.md`, `demo.omg` y `.github/workflows/omega-tests.yml` son parte del proyecto independiente.
 
 ## Validación CI
 
-- Último commit de código y pruebas validado: `9741af3a147a46680e39f908ae17a2939c477553`.
-- GitHub Actions run **38633327895**: `success`; compilación y **84 pruebas** completadas correctamente en Python **3.10, 3.11, 3.12 y 3.13**.
-- Enlace: https://github.com/JEEM244/Omega/actions/runs/38633327895
-- Se corrigió el rechazo concurrente: el cambio de estado a `rejected` ahora usa una actualización SQLite condicional sobre `status='pending'`; una prueba de carrera confirma que aprobar y rechazar simultáneamente solo puede tener un ganador y que el historial coincide con el efecto ejecutado.
+- Último commit de código y pruebas validado: `2297c05f133b58814b53efd98f44b87b45641217`.
+- GitHub Actions run **38633480702**: `success`; compilación y **85 pruebas** completadas correctamente en Python **3.10, 3.11, 3.12 y 3.13**.
+- Enlace: https://github.com/JEEM244/Omega/actions/runs/38633480702
+- El rechazo concurrente usa una actualización SQLite condicional sobre `status='pending'`; la prueba de carrera confirma que aprobar y rechazar simultáneamente solo puede tener un ganador y que el estado coincide con el efecto ejecutado.
+- WireLab Live intenta detener PCAPdroid desde `finally`, incluso si falla la recepción o escritura; una prueba simulada comprueba la llamada de detención sin iniciar una captura real.
 - `TERMUX_TESTING.md` documenta una secuencia manual por etapas para aprobación, auditoría y memoria persistente; la captura real queda separada.
 - Esto no demuestra todavía el permiso VPN, la captura real, ni compatibilidad con todos los Android.
 
