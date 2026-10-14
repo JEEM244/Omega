@@ -1,0 +1,20 @@
+name: OMEGA tests
+
+on:
+  push:
+    branches: [main, "omega-*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Compile OMEGA core and lab adapters
+        run: python -m py_compile omega_ai.py test_omega.py netmap.py pcap_inspector.py wirelab_live.py
+      - name: Run OMEGA tests
+        run: python -m unittest -v test_omega
