@@ -552,3 +552,69 @@ class WireLabStandaloneTests(unittest.TestCase):
         self.assertIn("udp_exporter", cmd)
         self.assertIn("org.mozilla.firefox", cmd)
         self.assertNotIn("shell", cmd)
+
+
+class WireLabEdgeCaseTests(unittest.TestCase):
+    def test_pcapng_section_header_and_interface(self):
+        import pcap_inspector
+        def block(block_type, body):
+            total = 8 + len(body) + 4
+            if total % 4:
+                body += b"\\x00" * ((-total) % 4)
+                total = 8 + len(body) + 4
+            return struct.pack("<II", block_type, total) + body + struct.pack("<I", total)
+        shb_body = struct.pack("<IHHq", 0x1A2B3C4D, 1, 0, -1)
+        shb = block(0x0A0D0D0A, shb_body)
+        idb = block(1, struct.pack("<HHI", 1, 0, 65535))
+        with tempfile.NamedTemporaryFile(delete=False) as output:
+            path = output.name
+            output.write(shb + idb)
+        try:
+            records = list(pcap_inspector.iter_capture(path))
+            self.assertEqual(records[0], ("header", {"format": "PCAPNG"}))
+            self.assertEqual(len(records), 1)
+        finally:
+            os.unlink(path)
+
+    def test_pcapng_rejects_truncated_section_header(self):
+        import pcap_inspector
+        with tempfile.NamedTemporaryFile(delete=False) as output:
+            path = output.name
+            output.write(bytes.fromhex("0a0d0d0a1c000000"))
+        try:
+            with self.assertRaises((ValueError, struct.error)):
+                list(pcap_inspector.iter_capture(path))
+        finally:
+            os.unlink(path)
+
+    def test_pcap_inspector_rejects_unknown_magic(self):
+        import pcap_inspector
+        with tempfile.NamedTemporaryFile(delete=False) as output:
+            path = output.name
+            output.write(b"not a packet capture")
+        try:
+            with self.assertRaises(ValueError):
+                list(pcap_inspector.iter_capture(path))
+        finally:
+            os.unlink(path)
+
+    def test_live_record_parser_rejects_inconsistent_length(self):
+        import wirelab_live
+        data = struct.pack("<IIII", 1, 2, 20, 20) + b"short"
+        self.assertIsNone(wirelab_live.parse_record_datagram(data))
+
+    def test_safe_output_path_refuses_existing_file(self):
+        import wirelab_live
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "existing.pcap")
+            with open(path, "wb") as output:
+                output.write(b"x")
+            with self.assertRaises(OSError):
+                wirelab_live.safe_output_path(path)
+
+    def test_safe_output_path_rejects_missing_parent(self):
+        import wirelab_live
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "missing", "capture.pcap")
+            with self.assertRaises(OSError):
+                wirelab_live.safe_output_path(path)
