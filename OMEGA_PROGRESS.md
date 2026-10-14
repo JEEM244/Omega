@@ -18,26 +18,36 @@ Actualizado: 2026-10-14.
 - Si el proceso se interrumpe después de reclamar una aprobación, esta no se reintenta automáticamente. La autorización local no protege contra un proceso que manipule directamente los archivos o la base de datos.
 - Se rechazan enlaces simbólicos para la base de datos, workspace y sidecars SQLite, incluido `-journal`.
 - `pcap_inspector.py`: valida longitudes capturadas/originales, snaplen y fracciones de timestamp en PCAP; valida bloques y opciones PCAPNG, respeta la resolución de timestamp `if_tsresol` y reporta paquetes malformados en vez de omitirlos silenciosamente. El decodificador UDP rechaza longitudes inválidas o truncadas.
-- `test_omega.py`: **83 pruebas automatizadas** que cubren lenguaje, memoria, autorización, carreras, enlaces simbólicos, NetMap, PCAP/PCAPNG, exportación de PCAPdroid y mensajes claros de aprobación.
+- `test_omega.py`: **84 pruebas automatizadas** que cubren lenguaje, memoria, autorización, carreras de aprobación/rechazo, enlaces simbólicos, NetMap, PCAP/PCAPNG, exportación de PCAPdroid y mensajes claros de aprobación.
 - `netmap.py`: escáner TCP acotado para IPv4 privada/loopback/link-local.
 - `wirelab_live.py`: receptor UDP en loopback para exportación PCAPdroid; ahora exige duración de 1–60 segundos y 1–500 paquetes, incluso si se ejecuta de forma independiente.
 - `README.md`, `OMEGA.md`, `demo.omg` y `.github/workflows/omega-tests.yml` son parte del proyecto independiente.
 
 ## Validación CI
 
-- Commit de código probado: `70ef0ce15b4122860c008036e1022f8c603a622b`.
-- GitHub Actions run **38607607696**: `success`; compilación y **83 pruebas** completadas correctamente en Python **3.10, 3.11, 3.12 y 3.13**. La ejecución posterior validará también los cambios de documentación y `.gitignore`.
-- Enlace: https://github.com/JEEM244/Omega/actions/runs/38607607696
-- Se añadió una regresión que comprueba que el REPL explique que `ID` es un marcador y debe sustituirse por el número real, por ejemplo `aprobar 1`.
+- Último commit de código y pruebas validado: `9741af3a147a46680e39f908ae17a2939c477553`.
+- GitHub Actions run **38633327895**: `success`; compilación y **84 pruebas** completadas correctamente en Python **3.10, 3.11, 3.12 y 3.13**.
+- Enlace: https://github.com/JEEM244/Omega/actions/runs/38633327895
+- Se corrigió el rechazo concurrente: el cambio de estado a `rejected` ahora usa una actualización SQLite condicional sobre `status='pending'`; una prueba de carrera confirma que aprobar y rechazar simultáneamente solo puede tener un ganador y que el historial coincide con el efecto ejecutado.
 - `TERMUX_TESTING.md` documenta una secuencia manual por etapas para aprobación, auditoría y memoria persistente; la captura real queda separada.
 - Esto no demuestra todavía el permiso VPN, la captura real, ni compatibilidad con todos los Android.
 
+## Validación manual de Termux (2026-10-14)
+
+- OMEGA AI 0.3.0 inició en el Android del usuario desde Termux.
+- Auditoría local autorizada: `SQLite integrity_check: ok`; workspace existe y es escribible; ejecución sin root; aproximadamente 25.45 GB libres; no consultó la red.
+- Memoria persistente verificada: se guardó `prueba_persistencia = funciona_omega`, se leyó correctamente y se recuperó de nuevo después de cerrar y reiniciar OMEGA.
+- Aprobación, rechazo individual e historial se probaron manualmente. Las solicitudes de auditoría antiguas se rechazaron y la cola quedó vacía.
+- El usuario creó dos solicitudes de captura PCAPdroid (IDs locales 7 y 8), pero no autorizó ninguna; no se ha ejecutado una captura real. Se reservan para la última fase.
+- La prueba manual del dispositivo corresponde al código anterior a los últimos commits de corrección; antes de cerrar el proyecto hay que sincronizar `main` en Termux y repetir compilación y las 84 pruebas.
+
 ## Pendientes reales
 
-1. Probar instalación limpia y funcionamiento en Termux en el Android del usuario; revisar errores y consumo de memoria/almacenamiento.
-2. Verificar PCAPdroid de forma manual con consentimiento VPN, captura acotada y lectura posterior del archivo generado.
-3. Seguir probando rutas, recuperación tras interrupciones, entradas malformadas y limitaciones del parser; no considerar que una auditoría puntual equivale a una auditoría de seguridad exhaustiva.
-4. Tras recibir el resultado de Termux, corregir cualquier fallo reproducible y volver a ejecutar CI.
+1. Completar la revisión estática de los flujos de error, recuperación tras interrupciones, entradas malformadas y límites de recursos; agregar pruebas si se detectan huecos concretos.
+2. Sincronizar la versión final de `main` en Termux y ejecutar compilación y las 84 pruebas en el dispositivo.
+3. Revisar la cola local y rechazar las solicitudes PCAPdroid antiguas que ya no se vayan a usar; no aprobarlas accidentalmente.
+4. Dejar para el final la prueba real de PCAPdroid con consentimiento VPN, captura limitada y posterior inspección del archivo generado.
+5. Corregir cualquier fallo reproducible y repetir CI antes de declarar una versión estable.
 
 ## Comandos para la prueba del dispositivo
 
