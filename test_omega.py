@@ -841,6 +841,61 @@ class ApprovalRaceRegressionTests(unittest.TestCase):
                 check.close()
 
 
+    def test_reject_and_approve_race_has_exactly_one_winner(self):
+        import threading
+        from concurrent.futures import ThreadPoolExecutor
+
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp) / "omega-home"
+            initial = omega_ai.OmegaStore(home)
+            action_id = initial.enqueue("file_create", {
+                "filename": "one-shot.txt", "content": "only once"
+            })
+            initial.close()
+            barrier = threading.Barrier(2)
+
+            def attempt(mode):
+                # Give both independent SQLite connections the same initial
+                # pending snapshot, then let their conditional claims race.
+                store = omega_ai.OmegaStore(home)
+                original_get = store.get_action
+                first_read = True
+
+                def synchronized_get(requested_id):
+                    nonlocal first_read
+                    row = original_get(requested_id)
+                    if first_read:
+                        first_read = False
+                        barrier.wait(timeout=5)
+                    return row
+
+                store.get_action = synchronized_get
+                try:
+                    try:
+                        if mode == "approve":
+                            message = store.execute_approved(action_id, approved=True)
+                        else:
+                            message = store.reject(action_id)
+                        return (True, mode, message)
+                    except omega_ai.OmegaError as exc:
+                        return (False, mode, str(exc))
+                finally:
+                    store.close()
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(attempt, ("approve", "reject")))
+
+            self.assertEqual(sum(won for won, _, _ in results), 1, results)
+            winner = next(mode for won, mode, _ in results if won)
+            check = omega_ai.OmegaStore(home)
+            try:
+                self.assertEqual(check.get_action(action_id)["status"], "approved" if winner == "approve" else "rejected")
+                created = (check.workspace / "one-shot.txt").exists()
+                self.assertEqual(created, winner == "approve")
+            finally:
+                check.close()
+
+
 class WireLabBoundedCaptureTests(unittest.TestCase):
     def test_live_receiver_requires_finite_capture_limits(self):
         import wirelab_live
