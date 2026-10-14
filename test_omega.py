@@ -673,7 +673,7 @@ class OmegaFileSafetyEdgeTests(unittest.TestCase):
 class PcapHardeningRegressionTests(unittest.TestCase):
     @staticmethod
     def _pcap_global_header(snaplen=65535):
-        return b"\\xd4\\xc3\\xb2\\xa1" + struct.pack("<HHIIII", 2, 4, 0, 0, snaplen, 1)
+        return b"\xd4\xc3\xb2\xa1" + struct.pack("<HHIIII", 2, 4, 0, 0, snaplen, 1)
 
     @staticmethod
     def _pcapng_block(block_type, body):
@@ -721,11 +721,11 @@ class PcapHardeningRegressionTests(unittest.TestCase):
 
     def test_pcapng_uses_interface_timestamp_resolution(self):
         import pcap_inspector
-        shb_body = b"\\x4d\\x3c\\x2b\\x1a" + struct.pack("<HHq", 1, 0, -1)
+        shb_body = b"\x4d\x3c\x2b\x1a" + struct.pack("<HHq", 1, 0, -1)
         shb = struct.pack("<II", 0x0A0D0D0A, 28) + shb_body + struct.pack("<I", 28)
         idb_body = (
             struct.pack("<HHI", 1, 0, 65535)
-            + struct.pack("<HHB", 9, 1, 9) + b"\\x00\\x00\\x00"
+            + struct.pack("<HHB", 9, 1, 9) + b"\x00\x00\x00"
             + struct.pack("<HH", 0, 0)
         )
         idb = self._pcapng_block(1, idb_body)
@@ -759,42 +759,40 @@ class ApprovalRaceRegressionTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp:
             home = Path(temp) / "omega-home"
-            first = omega_ai.OmegaStore(home)
-            second = omega_ai.OmegaStore(home)
-            try:
-                action_id = first.enqueue("file_create", {
-                    "filename": "one-shot.txt", "content": "only once"
-                })
-                barrier = threading.Barrier(2)
-                first_get = first.get_action
-                second_get = second.get_action
+            initial = omega_ai.OmegaStore(home)
+            action_id = initial.enqueue("file_create", {
+                "filename": "one-shot.txt", "content": "only once"
+            })
+            initial.close()
+            barrier = threading.Barrier(2)
 
-                def synchronized_first(action_id):
-                    row = first_get(action_id)
+            def execute():
+                # Create each SQLite connection inside its own worker thread.
+                store = omega_ai.OmegaStore(home)
+                original_get = store.get_action
+
+                def synchronized_get(action_id):
+                    row = original_get(action_id)
                     barrier.wait(timeout=5)
                     return row
 
-                def synchronized_second(action_id):
-                    row = second_get(action_id)
-                    barrier.wait(timeout=5)
-                    return row
-
-                first.get_action = synchronized_first
-                second.get_action = synchronized_second
-
-                def execute(store):
+                store.get_action = synchronized_get
+                try:
                     try:
                         return ("ok", store.execute_approved(action_id, approved=True))
                     except omega_ai.OmegaError as exc:
                         return ("error", str(exc))
+                finally:
+                    store.close()
 
-                with ThreadPoolExecutor(max_workers=2) as pool:
-                    results = list(pool.map(execute, (first, second)))
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(lambda _: execute(), range(2)))
 
-                self.assertEqual(sum(status == "ok" for status, _ in results), 1)
-                self.assertEqual(sum(status == "error" for status, _ in results), 1)
-                self.assertEqual((first.workspace / "one-shot.txt").read_text(), "only once")
-                self.assertEqual(first.get_action(action_id)["status"], "approved")
+            self.assertEqual(sum(status == "ok" for status, _ in results), 1)
+            self.assertEqual(sum(status == "error" for status, _ in results), 1)
+            check = omega_ai.OmegaStore(home)
+            try:
+                self.assertEqual((check.workspace / "one-shot.txt").read_text(), "only once")
+                self.assertEqual(check.get_action(action_id)["status"], "approved")
             finally:
-                first.close()
-                second.close()
+                check.close()
