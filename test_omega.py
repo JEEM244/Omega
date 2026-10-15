@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import socket
 import struct
@@ -1119,4 +1120,54 @@ class OmegaForgeTests(unittest.TestCase):
         interpreter = omega_forge._Interpreter(source)
         with self.assertRaisesRegex(omega_forge.ForgeError, "range supera"):
             interpreter.run([])
+
+    def test_custom_manifest_loader_reads_regular_json_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "sum.json"
+            spec = {
+                "name": "carga",
+                "cases": [{"input": [], "expected": 0}, {"input": [4, 2], "expected": 6}],
+                "candidates": [
+                    {"name": "integrado", "source": "def solve(xs):\n    return sum(xs)\n"},
+                    {"name": "bucle", "source": "def solve(xs):\n    total = 0\n    for value in xs:\n        total = total + value\n    return total\n"},
+                ],
+            }
+            path.write_text(json.dumps(spec), encoding="utf-8")
+            loaded = omega_forge.load_spec(path)
+            self.assertEqual(loaded["name"], "carga")
+            self.assertEqual(omega_forge.benchmark_custom(loaded)["winner"], "integrado")
+
+    def test_custom_manifest_loader_rejects_symlinks(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir) / "real.json"
+            target.write_text("{}", encoding="utf-8")
+            link = Path(temp_dir) / "alias.json"
+            link.symlink_to(target)
+            with self.assertRaisesRegex(omega_forge.ForgeError, "enlace simbólico"):
+                omega_forge.load_spec(link)
+
+    def test_terminal_forja_runs_custom_manifest_read_only(self):
+        with tempfile.TemporaryDirectory() as home:
+            path = Path(home) / "custom.json"
+            spec = {
+                "name": "terminal personalizada",
+                "cases": [{"input": [], "expected": 0}, {"input": [1, 2], "expected": 3}],
+                "candidates": [
+                    {"name": "integrado", "source": "def solve(xs):\n    return sum(xs)\n"},
+                    {"name": "bucle", "source": "def solve(xs):\n    total = 0\n    for value in xs:\n        total = total + value\n    return total\n"},
+                ],
+            }
+            path.write_text(json.dumps(spec), encoding="utf-8")
+            output = io.StringIO()
+            with patch("builtins.input", side_effect=[f"/forja {path}", "/salir"]), redirect_stdout(output):
+                omega_ai.run_repl(home)
+            rendered = output.getvalue()
+            self.assertIn("experimento personalizado: terminal personalizada", rendered)
+            self.assertIn("VALIDADO", rendered)
+            store = omega_ai.OmegaStore(home)
+            try:
+                self.assertEqual(store.pending(), [])
+                self.assertEqual(store.history(), [])
+            finally:
+                store.close()
 
