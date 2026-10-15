@@ -25,6 +25,9 @@ MAX_LOOP_ITERATIONS = 256
 MAX_INT_BITS = 256
 MAX_ABS_NUMBER = 1e100
 MAX_TEXT_LENGTH = 4096
+MAX_SPEC_BYTES = 64 * 1024
+MAX_CANDIDATES = 10
+MAX_NESTING = 8
 
 
 class ForgeError(ValueError):
@@ -46,7 +49,9 @@ class _Returned(Exception):
         self.value = value
 
 
-def _checked(value: Any) -> Any:
+def _checked(value: Any, depth: int = 0) -> Any:
+    if depth > MAX_NESTING:
+        raise ForgeError(f"Los datos superan la profundidad máxima de {MAX_NESTING} niveles.")
     if value is None or type(value) in (bool, int, float, str):
         if type(value) is int and value.bit_length() > MAX_INT_BITS:
             raise ForgeError("Entero demasiado grande.")
@@ -58,7 +63,7 @@ def _checked(value: Any) -> Any:
     if type(value) in (list, tuple):
         if len(value) > MAX_COLLECTION_ITEMS:
             raise ForgeError("Colección demasiado grande.")
-        return type(value)(_checked(item) for item in value)
+        return type(value)(_checked(item, depth + 1) for item in value)
     raise ForgeError(f"Tipo de dato no permitido: {type(value).__name__}.")
 
 
@@ -253,6 +258,12 @@ class _Interpreter:
             return _checked(tuple(self._eval(item, env, budget) for item in node.elts))
         if isinstance(node, ast.BinOp):
             left, right = self._eval(node.left, env, budget), self._eval(node.right, env, budget)
+            if isinstance(node.op, ast.Mult):
+                sequence, multiplier = (left, right) if type(right) is int else (right, left)
+                if type(multiplier) is int and type(sequence) in (str, list, tuple):
+                    limit = MAX_TEXT_LENGTH if type(sequence) is str else MAX_COLLECTION_ITEMS
+                    if multiplier < 0 or len(sequence) * multiplier > limit:
+                        raise ForgeError("La multiplicación excede el tamaño permitido.")
             if isinstance(node.op, ast.Pow):
                 if type(right) not in (int, float) or abs(right) > 32:
                     raise ForgeError("El exponente debe estar entre -32 y 32.")
@@ -318,9 +329,13 @@ class _Interpreter:
                     if not 1 <= len(args) <= 3 or any(type(x) is not int for x in args):
                         raise ForgeError("range acepta de uno a tres enteros.")
                     result = range(*args)
-                    if len(result) > MAX_LOOP_ITERATIONS:
+                    try:
+                        range_length = len(result)
+                    except OverflowError as exc:
+                        raise ForgeError(f"range supera {MAX_LOOP_ITERATIONS} elementos.") from exc
+                    if range_length > MAX_LOOP_ITERATIONS:
                         raise ForgeError(f"range supera {MAX_LOOP_ITERATIONS} elementos.")
-                    budget.tick(max(1, len(result) // 8))
+                    budget.tick(max(1, range_length // 8))
                     return result
                 if len(args) != 1:
                     raise ForgeError(f"{name} requiere exactamente un argumento.")
@@ -399,14 +414,9 @@ def available_tasks() -> tuple[str, ...]:
     return tuple(sorted(_TASKS))
 
 
-def benchmark(task: str) -> dict[str, Any]:
-    """Run generated candidates against fixed, deterministic correctness cases."""
-    name = task.casefold().strip()
-    if name not in _TASKS:
-        raise ForgeError(f"Tarea no disponible: {task}. Disponibles: {', '.join(available_tasks())}.")
-    candidates, cases = _TASKS[name]
-    if len(cases) > MAX_CASES:
-        raise ForgeError(f"El conjunto supera {MAX_CASES} casos.")
+def _run_candidates(task: str, candidates: list[Candidate], cases: list[tuple[Any, Any]]) -> dict[str, Any]:
+    if not cases or len(cases) > MAX_CASES:
+        raise ForgeError(f"El conjunto de pruebas debe tener entre 1 y {MAX_CASES} casos.")
     ranked: list[dict[str, Any]] = []
     for candidate in candidates:
         interpreter = _Interpreter(candidate.source)
@@ -415,7 +425,7 @@ def benchmark(task: str) -> dict[str, Any]:
             try:
                 actual, steps = interpreter.run(data)
                 total_steps += steps
-                if not _equal_typed(actual, expected):
+                if not _equal_typed(actual, _checked(expected)):
                     failure = f"caso {index}: resultado inesperado"
                     break
                 passed += 1
@@ -434,13 +444,57 @@ def benchmark(task: str) -> dict[str, Any]:
     ranked.sort(key=lambda item: (not item["valid"], -item["passed"], item["steps"], item["name"]))
     winner = next((item for item in ranked if item["valid"]), None)
     return {
-        "task": name,
+        "task": task,
         "cases": len(cases),
         "ranked": ranked,
         "winner": winner["name"] if winner else None,
         "metric": "pasos estimados del intérprete; no son milisegundos ni una medición de velocidad nativa",
     }
 
+
+def benchmark(task: str) -> dict[str, Any]:
+    """Run generated candidates against fixed, deterministic correctness cases."""
+    name = task.casefold().strip()
+    if name not in _TASKS:
+        raise ForgeError(f"Tarea no disponible: {task}. Disponibles: {', '.join(available_tasks())}.")
+    candidates, cases = _TASKS[name]
+    return _run_candidates(name, candidates, cases)
+
+
+def benchmark_custom(spec: Any) -> dict[str, Any]:
+    """Compare user-supplied pure candidates against a JSON-shaped test manifest."""
+    if not isinstance(spec, dict) or set(spec) != {"name", "cases", "candidates"}:
+        raise ForgeError("El manifiesto requiere exactamente: name, cases y candidates.")
+    name = spec["name"]
+    raw_cases = spec["cases"]
+    raw_candidates = spec["candidates"]
+    if not isinstance(name, str) or not name.strip() or len(name) > 80:
+        raise ForgeError("name debe ser texto de 1 a 80 caracteres.")
+    if not isinstance(raw_cases, list) or not 1 <= len(raw_cases) <= MAX_CASES:
+        raise ForgeError(f"cases debe contener entre 1 y {MAX_CASES} casos.")
+    if not isinstance(raw_candidates, list) or not 2 <= len(raw_candidates) <= MAX_CANDIDATES:
+        raise ForgeError(f"candidates debe contener entre 2 y {MAX_CANDIDATES} candidatos.")
+    cases: list[tuple[Any, Any]] = []
+    for index, item in enumerate(raw_cases, start=1):
+        if not isinstance(item, dict) or set(item) != {"input", "expected"}:
+            raise ForgeError(f"El caso {index} requiere exactamente input y expected.")
+        cases.append((_checked(item["input"]), _checked(item["expected"])))
+    candidates: list[Candidate] = []
+    seen_names: set[str] = set()
+    for index, item in enumerate(raw_candidates, start=1):
+        if not isinstance(item, dict) or set(item) != {"name", "source"}:
+            raise ForgeError(f"El candidato {index} requiere exactamente name y source.")
+        candidate_name, source = item["name"], item["source"]
+        if (not isinstance(candidate_name, str) or not candidate_name.strip()
+                or len(candidate_name) > 80 or candidate_name in seen_names):
+            raise ForgeError(f"Nombre de candidato inválido o repetido en la posición {index}.")
+        if not isinstance(source, str) or len(source.encode("utf-8")) > MAX_SOURCE_BYTES:
+            raise ForgeError(f"El código del candidato {index} supera el límite de {MAX_SOURCE_BYTES} bytes.")
+        # Parse and policy-check all candidates before running any one candidate.
+        _Interpreter(source)
+        candidates.append(Candidate(candidate_name, source))
+        seen_names.add(candidate_name)
+    return _run_candidates(name.strip(), candidates, cases)
 
 def format_report(task: str = "all") -> str:
     requested = available_tasks() if task.strip().casefold() in ("", "all", "todo") else (task.strip().casefold(),)
