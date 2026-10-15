@@ -9,6 +9,7 @@ from unittest.mock import patch, Mock
 from pathlib import Path
 
 import omega_ai
+import omega_forge
 
 
 class OmegaLanguageTests(unittest.TestCase):
@@ -995,3 +996,65 @@ class TerminalUiTests(unittest.TestCase):
                 self.assertEqual(reopened.pending()[0]["kind"], "status")
             finally:
                 reopened.close()
+
+class OmegaForgeTests(unittest.TestCase):
+    def test_sum_candidates_pass_and_forge_selects_a_winner(self):
+        report = omega_forge.benchmark("sum")
+        self.assertEqual(report["cases"], 6)
+        self.assertEqual(report["winner"], "sum_integrado")
+        self.assertTrue(all(candidate["valid"] for candidate in report["ranked"]))
+        self.assertEqual(report["ranked"][0]["name"], report["winner"])
+        self.assertIn("no son milisegundos", report["metric"])
+
+    def test_max_candidates_pass_all_cases(self):
+        report = omega_forge.benchmark("max")
+        self.assertEqual(report["winner"], "max_integrado")
+        self.assertTrue(all(candidate["passed"] == report["cases"] for candidate in report["ranked"]))
+
+    def test_unknown_forge_task_is_rejected(self):
+        with self.assertRaisesRegex(omega_forge.ForgeError, "Tarea no disponible"):
+            omega_forge.benchmark("shell")
+
+    def test_candidate_imports_are_rejected(self):
+        source = "import os\ndef solve(xs):\n    return 1\n"
+        with self.assertRaisesRegex(omega_forge.ForgeError, "única función"):
+            omega_forge._Interpreter(source)
+
+    def test_candidate_file_and_network_calls_are_rejected(self):
+        for source in (
+            "def solve(xs):\n    return open('x').read()\n",
+            "def solve(xs):\n    return xs.__class__\n",
+            "def solve(xs):\n    while True:\n        return 1\n",
+        ):
+            with self.subTest(source=source), self.assertRaises(omega_forge.ForgeError):
+                omega_forge._Interpreter(source)
+
+    def test_candidate_range_and_execution_steps_are_bounded(self):
+        source = "def solve(xs):\n    total = 0\n    for i in range(999999):\n        total = total + i\n    return total\n"
+        interpreter = omega_forge._Interpreter(source)
+        with self.assertRaisesRegex(omega_forge.ForgeError, "range supera"):
+            interpreter.run([])
+
+    def test_candidate_never_calls_python_eval_or_exec(self):
+        source = "def solve(xs):\n    return sum(xs)\n"
+        interpreter = omega_forge._Interpreter(source)
+        result, steps = interpreter.run([1, 2, 3])
+        self.assertEqual(result, 6)
+        self.assertGreater(steps, 0)
+
+    def test_terminal_forja_command_runs_without_queuing_side_effects(self):
+        with tempfile.TemporaryDirectory() as home:
+            output = io.StringIO()
+            with patch("builtins.input", side_effect=["/forja sum", "/salir"]), redirect_stdout(output):
+                omega_ai.run_repl(home)
+            rendered = output.getvalue()
+            self.assertIn("OMEGA FORGE", rendered)
+            self.assertIn("sum_integrado", rendered)
+            store = omega_ai.OmegaStore(home)
+            try:
+                self.assertEqual(store.pending(), [])
+                self.assertEqual(store.history(), [])
+            finally:
+                store.close()
+
+
