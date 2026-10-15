@@ -752,7 +752,8 @@ def help_text() -> str:
       historial [N]                 Consultar las últimas N operaciones
       aprender "frase" = intención   Proponer ejemplo para aprendizaje local
       objetivo <texto>              Crear un plan transparente a partir de un objetivo
-      forja [sum|max|todo|spec.json] Comparar algoritmos o un manifiesto JSON local
+      forja [sum|max|todo|spec.json] Comparar algoritmos con pruebas locales
+      forja descubrir spec.json       Sintetizar una expresión desde ejemplos y validación
       pendientes                    Ver operaciones que esperan autorización
       aprobar <ID>                  Aprobar y ejecutar UNA operación pendiente
       rechazar <ID>                 Rechazar una operación pendiente
@@ -933,15 +934,20 @@ def run_repl(home: str | Path) -> int:
                     import omega_forge
                     raw_task = rest.strip()
                     task = raw_task.casefold() or "all"
-                    if task in ("all", "todo", "sum", "max"):
-                        print(omega_forge.format_report(task))
-                    else:
-                        spec_path = parse_quoted(raw_task) if raw_task.startswith('"') else raw_task
-                        try:
+                    try:
+                        if task in ("all", "todo", "sum", "max"):
+                            print(omega_forge.format_report(task))
+                        elif task.startswith("descubrir "):
+                            spec_arg = raw_task[len("descubrir "):].strip()
+                            spec_path = parse_quoted(spec_arg) if spec_arg.startswith('"') else spec_arg
+                            report = omega_forge.synthesize_numeric(omega_forge.load_spec(spec_path))
+                            print(omega_forge.format_synthesis_report(report))
+                        else:
+                            spec_path = parse_quoted(raw_task) if raw_task.startswith('"') else raw_task
                             report = omega_forge.benchmark_custom(omega_forge.load_spec(spec_path))
                             print(omega_forge.format_custom_report(report))
-                        except omega_forge.ForgeError as exc:
-                            raise OmegaError(str(exc)) from exc
+                    except omega_forge.ForgeError as exc:
+                        raise OmegaError(str(exc)) from exc
                 elif command == "objetivo":
                     if not rest.strip(): raise OmegaError("Escribe el objetivo después de 'objetivo'.")
                     summary, actions = make_plan(rest.strip(), store.training_examples())
