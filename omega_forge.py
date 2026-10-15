@@ -519,6 +519,26 @@ def format_report(task: str = "all") -> str:
     return "\n".join(lines)
 
 
+def load_spec(path_value: str | Path) -> Any:
+    """Read one explicitly selected, size-bounded JSON manifest without following symlinks."""
+    path = Path(path_value).expanduser()
+    if path.is_symlink():
+        raise ForgeError("El manifiesto no puede ser un enlace simbólico.")
+    try:
+        path = path.resolve(strict=True)
+        if not path.is_file():
+            raise ForgeError("El manifiesto debe ser un archivo regular.")
+        if path.stat().st_size > MAX_SPEC_BYTES:
+            raise ForgeError(f"El manifiesto supera {MAX_SPEC_BYTES} bytes.")
+        raw = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise ForgeError(f"No se pudo leer el manifiesto: {exc}") from exc
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ForgeError(f"JSON inválido en el manifiesto: {exc.msg}.") from exc
+
+
 def format_custom_report(report: dict[str, Any]) -> str:
     lines = [
         f"OMEGA FORGE {VERSION} · experimento personalizado: {report['task']}",
@@ -545,15 +565,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.spec:
-            path = Path(args.spec).expanduser()
-            if path.is_symlink():
-                raise ForgeError("El manifiesto no puede ser un enlace simbólico.")
-            path = path.resolve(strict=True)
-            if not path.is_file():
-                raise ForgeError("El manifiesto debe ser un archivo regular.")
-            if path.stat().st_size > MAX_SPEC_BYTES:
-                raise ForgeError(f"El manifiesto supera {MAX_SPEC_BYTES} bytes.")
-            spec = json.loads(path.read_text(encoding="utf-8"))
+            spec = load_spec(args.spec)
             report = benchmark_custom(spec)
             if args.json:
                 print(json.dumps(report, ensure_ascii=False, indent=2))
