@@ -104,7 +104,7 @@ class _Interpreter:
         function = tree.body[0]
         if (function.name != "solve" or function.decorator_list or function.returns
                 or function.type_params or len(function.args.args) != 1
-                or function.args.posonlyargs or function.args.kwonlyargs
+                or getattr(function, "type_params", []) or function.args.posonlyargs or function.args.kwonlyargs
                 or function.args.vararg or function.args.kwarg or function.args.defaults
                 or function.args.kw_defaults):
             raise ForgeError("Usa exactamente def solve(datos): sin decoradores ni argumentos extra.")
