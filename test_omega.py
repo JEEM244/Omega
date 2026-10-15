@@ -1171,3 +1171,79 @@ class OmegaForgeTests(unittest.TestCase):
             finally:
                 store.close()
 
+    def test_synthesis_discovers_expression_and_uses_held_out_validation(self):
+        spec = {
+            "name": "sumar dos valores",
+            "examples": [
+                {"input": [1, 2], "output": 3},
+                {"input": [2, 4], "output": 6},
+                {"input": [7, -2], "output": 5},
+                {"input": [-3, 5], "output": 2},
+            ],
+            "validation": [
+                {"input": [10, 5], "output": 15},
+                {"input": [-4, -3], "output": -7},
+            ],
+        }
+        report = omega_forge.synthesize_numeric(spec)
+        self.assertTrue(report["validated"])
+        self.assertGreater(report["generated"], 100)
+        self.assertGreater(report["training_matches"], 0)
+        interpreter = omega_forge._Interpreter(report["source"])
+        result, _ = interpreter.run([20, 22])
+        self.assertEqual(result, 42)
+
+    def test_synthesis_rejects_training_fit_that_fails_held_out_validation(self):
+        spec = {
+            "name": "regla contradictoria",
+            "examples": [
+                {"input": [1], "output": 2},
+                {"input": [2], "output": 4},
+                {"input": [3], "output": 6},
+            ],
+            "validation": [{"input": [4], "output": 9}],
+        }
+        report = omega_forge.synthesize_numeric(spec)
+        self.assertGreater(report["training_matches"], 0)
+        self.assertFalse(report["validated"])
+        self.assertIsNone(report["source"])
+
+    def test_synthesis_rejects_mismatched_input_arity(self):
+        spec = {
+            "name": "arity",
+            "examples": [
+                {"input": [1], "output": 1},
+                {"input": [2], "output": 2},
+                {"input": [3, 4], "output": 7},
+            ],
+            "validation": [{"input": [5], "output": 5}],
+        }
+        with self.assertRaisesRegex(omega_forge.ForgeError, "mismo número de entradas"):
+            omega_forge.synthesize_numeric(spec)
+
+    def test_terminal_forja_discover_command_synthesizes_from_json(self):
+        with tempfile.TemporaryDirectory() as home:
+            spec_path = Path(home) / "discover.json"
+            spec = {
+                "name": "suma terminal",
+                "examples": [
+                    {"input": [1, 2], "output": 3},
+                    {"input": [2, 4], "output": 6},
+                    {"input": [3, 5], "output": 8},
+                ],
+                "validation": [{"input": [10, 5], "output": 15}],
+            }
+            spec_path.write_text(json.dumps(spec), encoding="utf-8")
+            output = io.StringIO()
+            with patch("builtins.input", side_effect=[f"/forja descubrir {spec_path}", "/salir"]), redirect_stdout(output):
+                omega_ai.run_repl(home)
+            rendered = output.getvalue()
+            self.assertIn("síntesis aritmética acotada", rendered)
+            self.assertIn("VALIDADO EN LOS CASOS SUMINISTRADOS", rendered)
+            store = omega_ai.OmegaStore(home)
+            try:
+                self.assertEqual(store.pending(), [])
+                self.assertEqual(store.history(), [])
+            finally:
+                store.close()
+
