@@ -103,7 +103,7 @@ class _Interpreter:
             raise ForgeError("El candidato debe contener una única función: def solve(datos):")
         function = tree.body[0]
         if (function.name != "solve" or function.decorator_list or function.returns
-                or function.type_params or len(function.args.args) != 1
+                or getattr(function, "type_params", []) or len(function.args.args) != 1
                 or getattr(function, "type_params", []) or function.args.posonlyargs or function.args.kwonlyargs
                 or function.args.vararg or function.args.kwarg or function.args.defaults
                 or function.args.kw_defaults):
