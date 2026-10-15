@@ -20,9 +20,9 @@ Los datos se guardan en ~/.omega_ai/, con memoria en omega.sqlite3 y archivos ge
 
 ## Primer experimento
 
-En el prompt omega> escribe:
+En la terminal escribe `/forja` para ejecutar el laboratorio puro de FORGE, o prueba el flujo de objetivo:
 
-    objetivo crear un experimento
+    /objetivo crear un experimento
     pendientes
     aprobar 1
     auditar
@@ -66,6 +66,20 @@ La captura OMEGA se apoya en wirelab_live.py, requiere PCAPdroid y puede activar
 
 La inspección OMEGA se apoya en pcap_inspector.py y solo lee archivos PCAP/PCAPNG dentro del directorio personal; procesa como máximo 100 paquetes de archivos de hasta 50 MiB y requiere aprobación. El escaneo OMEGA se apoya en netmap.py, usa TCP connect sin root, solo acepta IPv4 privada/loopback/link-local y limita el lote a 100 puertos; el usuario debe indicar AUTORIZADO y después confirmar SI para ejecutar. El comando compactar solicita aprobación antes de reducir el almacenamiento de SQLite; si no hay al menos 1 MiB libre o el doble del tamaño de la base, se niega a ejecutar VACUUM. Los archivos solo se crean dentro de ~/.omega_ai/workspace, con nombres simples y sin sobrescribir archivos existentes. OMEGA rechaza workspace, base de datos y archivos auxiliares WAL/SHM/journal cuando son enlaces simbólicos, limita el tamaño del texto tras interpolar variables y limita cada programa a 100 líneas/instrucciones significativas. No hay evaluación de Python, ejecución de shell ni escritura en rutas arbitrarias.
 
+## OMEGA FORGE 0.1
+
+FORGE es el primer laboratorio experimental integrado en la terminal. Escribe:
+
+    /forja
+    /forja sum
+    /forja max
+
+Compara candidatos para sumar y encontrar máximos contra conjuntos de pruebas deterministas. El ganador debe pasar todos los casos; la clasificación secundaria usa pasos estimados del intérprete restringido. Esto no son milisegundos ni prueba de superioridad general.
+
+FORGE interpreta una función `solve(datos)` con un subconjunto acotado de sintaxis estilo Python: asignaciones locales, operaciones aritméticas, condiciones, bucles acotados y un conjunto pequeño de funciones integradas. No permite imports del candidato, acceso a atributos, archivos, red, shell ni ejecución arbitraria con `eval` o `exec`. Los límites de fuente, colecciones, iteraciones y pasos evitan experimentos ilimitados.
+
+En esta primera versión, los candidatos proceden de plantillas internas conocidas y el laboratorio solo compara soluciones en memoria; no modifica el núcleo, la memoria SQLite ni archivos del usuario. Es una base para futuras funciones de generación de candidatos y evolución controlada, no todavía un sistema autónomo que reescriba su propio código.
+
 ## Seguridad y límites
 
 - El planificador es una demostración transparente basada en reglas, no un LLM ni inteligencia general.
@@ -83,7 +97,7 @@ Intenciones permitidas: experimento, memoria, diagnostico y general. El clasific
 
 ## Pruebas
 
-    python -m py_compile omega_ai.py test_omega.py
+    python -m py_compile omega_ai.py omega_forge.py test_omega.py netmap.py pcap_inspector.py wirelab_live.py
     python -m unittest -v test_omega
     python -m unittest -v
 
