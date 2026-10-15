@@ -715,24 +715,31 @@ def make_plan(goal: str, examples: list[dict[str, str]] | None = None) -> tuple[
 
 def queue_actions(store: OmegaStore, actions: list[dict[str, Any]]) -> None:
     if not actions:
-        print("Programa válido: ninguna condición activó una acción; no se ejecutará nada.")
+        print(terminal_style("✓ Programa válido · no hay acciones que encolar.", "muted"))
         return
     pending_count = len(store.pending())
     if pending_count + len(actions) > MAX_PENDING:
         print(
-            f"No se encoló el programa: la cola admite {MAX_PENDING} operaciones y ya hay {pending_count} pendientes.",
+            terminal_style(
+                f"ERROR: no se encoló el programa; el límite es {MAX_PENDING} y ya hay {pending_count} pendientes.",
+                "red",
+            ),
             file=sys.stderr,
         )
         return
+    print(terminal_style("◇ Acciones pendientes", "cyan"))
     for action in actions:
         action_id = store.enqueue(action["kind"], action["args"])
-        print(f"  [{action_id}] PENDIENTE — {describe_action(action)}")
-    print("Nada se ejecutó. Aprueba cada operación individualmente; por ejemplo: aprobar 1 (usa el número real mostrado).")
+        print(terminal_style(f"  [{action_id}] PENDIENTE", "yellow") + f" — {describe_action(action)}")
+    print(terminal_style("Nada se ejecutó.", "muted"))
+    print("Revisa cada descripción; autoriza solo con aprobar <ID> y luego escribe SI.")
 
 
 def help_text() -> str:
     return textwrap.dedent(f"""\
     OMEGA AI {VERSION} — laboratorio offline, sin root
+
+    Los comandos aceptan el prefijo /; por ejemplo, /ayuda equivale a ayuda.
 
     Comandos del agente:
       ayuda                         Mostrar esta ayuda
@@ -908,13 +915,19 @@ def run_repl(home: str | Path) -> int:
                     if parts and not 1 <= int(parts[0]) <= 100:
                         raise OmegaError("N debe estar entre 1 y 100.")
                     rows = store.history(int(parts[0]) if parts else 20)
+                    if rows:
+                        print(terminal_style("◷ Historial reciente", "cyan", color))
                     for item in rows:
                         result = (item["result"] or "").replace("\n", " | ")
                         if len(result) > 120:
                             result = result[:117] + "..."
-                        print(f'[{item["id"]}] {item["kind"]} | {item["status"]} | {item["created_at"]} | {result}')
+                        state_colors = {"approved": "green", "pending": "yellow", "rejected": "muted", "failed": "red"}
+                        state = terminal_style(item["status"].upper(), state_colors.get(item["status"], "muted"), color)
+                        print(f'  [{item["id"]}] {item["kind"]} · {state} · {item["created_at"]}')
+                        if result:
+                            print(f"      {result}")
                     if not rows:
-                        print("Todavía no hay operaciones en el historial.")
+                        print(terminal_style("Todavía no hay operaciones en el historial.", "muted", color))
                 elif command == "objetivo":
                     if not rest.strip(): raise OmegaError("Escribe el objetivo después de 'objetivo'.")
                     summary, actions = make_plan(rest.strip(), store.training_examples())
@@ -922,24 +935,29 @@ def run_repl(home: str | Path) -> int:
                     queue_actions(store, actions)
                 elif command == "pendientes":
                     rows = store.pending()
-                    if not rows: print("No hay operaciones pendientes.")
+                    if not rows:
+                        print(terminal_style("✓ No hay operaciones pendientes.", "muted", color))
+                    else:
+                        print(terminal_style("◇ Operaciones que requieren aprobación", "cyan", color))
                     for row in rows:
-                        print(f'  [{row["id"]}] {describe_action({"kind": row["kind"], "args": json.loads(row["args_json"])})}')
+                        description = describe_action({"kind": row["kind"], "args": json.loads(row["args_json"])})
+                        print(terminal_style(f'  [{row["id"]}] PENDIENTE', "yellow", color) + f" — {description}")
                 elif command == "aprobar":
                     if not rest.strip().isdigit(): raise OmegaError("Sustituye ID por el número real de la operación; ejemplo: aprobar 1")
                     action_id = int(rest.strip())
                     row = store.get_action(action_id)
                     if row is None: raise OmegaError(f"No existe la operación #{action_id}.")
                     if row["status"] != "pending": raise OmegaError(f"La operación ya está en estado {row['status']}.")
-                    print("Operación solicitada:", describe_action({"kind": row["kind"], "args": json.loads(row["args_json"])}))
-                    confirm = input("¿Confirmas esta operación? Escribe SI para autorizar: ").strip()
+                    print(terminal_style("◇ Operación solicitada", "cyan", color))
+                    print("  " + describe_action({"kind": row["kind"], "args": json.loads(row["args_json"])}))
+                    confirm = input(terminal_style("¿Autorizar? Escribe SI exactamente ❯ ", "orange", color)).strip()
                     if confirm != "SI":
-                        print("No autorizada. No se ejecutó.")
+                        print(terminal_style("No autorizada · no se ejecutó.", "muted", color))
                     else:
                         print(terminal_style("✓ RESULTADO", "green", color) + ":", store.execute_approved(action_id, approved=True))
                 elif command == "rechazar":
                     if not rest.strip().isdigit(): raise OmegaError("Sustituye ID por el número real de la operación; ejemplo: rechazar 1")
-                    print(store.reject(int(rest.strip())))
+                    print(terminal_style(store.reject(int(rest.strip())), "muted", color))
                 elif command == "memorias":
                     queue_actions(store, [{"kind": "memory_list", "args": {}}])
                 elif command == "recordar":
