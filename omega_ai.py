@@ -752,7 +752,7 @@ def help_text() -> str:
       historial [N]                 Consultar las últimas N operaciones
       aprender "frase" = intención   Proponer ejemplo para aprendizaje local
       objetivo <texto>              Crear un plan transparente a partir de un objetivo
-      forja [sum|max|todo]           Comparar algoritmos en el laboratorio OMEGA FORGE
+      forja [sum|max|todo|spec.json] Comparar algoritmos o un manifiesto JSON local
       pendientes                    Ver operaciones que esperan autorización
       aprobar <ID>                  Aprobar y ejecutar UNA operación pendiente
       rechazar <ID>                 Rechazar una operación pendiente
@@ -931,10 +931,17 @@ def run_repl(home: str | Path) -> int:
                         print(terminal_style("Todavía no hay operaciones en el historial.", "muted", color))
                 elif command == "forja":
                     import omega_forge
-                    task = rest.strip().casefold() or "all"
-                    if task not in ("all", "todo", "sum", "max"):
-                        raise OmegaError("Uso: forja [sum|max|todo]")
-                    print(omega_forge.format_report(task))
+                    raw_task = rest.strip()
+                    task = raw_task.casefold() or "all"
+                    if task in ("all", "todo", "sum", "max"):
+                        print(omega_forge.format_report(task))
+                    else:
+                        spec_path = parse_quoted(raw_task) if raw_task.startswith('"') else raw_task
+                        try:
+                            report = omega_forge.benchmark_custom(omega_forge.load_spec(spec_path))
+                            print(omega_forge.format_custom_report(report))
+                        except omega_forge.ForgeError as exc:
+                            raise OmegaError(str(exc)) from exc
                 elif command == "objetivo":
                     if not rest.strip(): raise OmegaError("Escribe el objetivo después de 'objetivo'.")
                     summary, actions = make_plan(rest.strip(), store.training_examples())
