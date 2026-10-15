@@ -15,6 +15,7 @@ import math
 import operator
 from dataclasses import dataclass
 from typing import Any
+from pathlib import Path
 
 VERSION = "0.1.0"
 MAX_SOURCE_BYTES = 8192
@@ -518,12 +519,47 @@ def format_report(task: str = "all") -> str:
     return "\n".join(lines)
 
 
+def format_custom_report(report: dict[str, Any]) -> str:
+    lines = [
+        f"OMEGA FORGE {VERSION} · experimento personalizado: {report['task']}",
+        f"Casos de prueba: {report['cases']}",
+    ]
+    for rank, candidate in enumerate(report["ranked"], start=1):
+        status = "VALIDADO" if candidate["valid"] else f"NO VALIDADO ({candidate['passed']}/{candidate['total']})"
+        lines.append(f"  {rank}. {candidate['name']} — {status} — {candidate['steps']} pasos")
+        if candidate["failure"]:
+            lines.append(f"     Motivo: {candidate['failure']}")
+    lines.append(f"Selección: {report['winner'] or 'ninguna'}")
+    lines.extend([
+        "Puntuación: pasos estimados del intérprete restringido, no milisegundos.",
+        "La selección solo es válida para los casos declarados; revisa los límites del manifiesto.",
+    ])
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="OMEGA FORGE: comparación local de algoritmos seguros")
     parser.add_argument("task", nargs="?", choices=("all", "sum", "max"), default="all")
+    parser.add_argument("--spec", help="Ruta a un manifiesto JSON de experimento personalizado")
     parser.add_argument("--json", action="store_true", help="Mostrar el informe en JSON")
     args = parser.parse_args(argv)
     try:
+        if args.spec:
+            path = Path(args.spec).expanduser()
+            if path.is_symlink():
+                raise ForgeError("El manifiesto no puede ser un enlace simbólico.")
+            path = path.resolve(strict=True)
+            if not path.is_file():
+                raise ForgeError("El manifiesto debe ser un archivo regular.")
+            if path.stat().st_size > MAX_SPEC_BYTES:
+                raise ForgeError(f"El manifiesto supera {MAX_SPEC_BYTES} bytes.")
+            spec = json.loads(path.read_text(encoding="utf-8"))
+            report = benchmark_custom(spec)
+            if args.json:
+                print(json.dumps(report, ensure_ascii=False, indent=2))
+            else:
+                print(format_custom_report(report))
+            return 0 if report["winner"] else 1
         requested = available_tasks() if args.task == "all" else (args.task,)
         reports = [benchmark(task) for task in requested]
         if args.json:
@@ -531,7 +567,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(format_report(args.task))
         return 0 if all(report["winner"] for report in reports) else 1
-    except ForgeError as exc:
+    except (ForgeError, OSError, UnicodeError, json.JSONDecodeError) as exc:
         parser.error(str(exc))
     return 2
 
