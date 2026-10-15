@@ -696,9 +696,19 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="OMEGA FORGE: comparación local de algoritmos seguros")
     parser.add_argument("task", nargs="?", choices=("all", "sum", "max"), default="all")
     parser.add_argument("--spec", help="Ruta a un manifiesto JSON de experimento personalizado")
+    parser.add_argument("--synthesize", help="Sintetizar una expresión aritmética desde ejemplos JSON")
     parser.add_argument("--json", action="store_true", help="Mostrar el informe en JSON")
     args = parser.parse_args(argv)
+    if args.spec and args.synthesize:
+        parser.error("Usa --spec o --synthesize, no ambos.")
     try:
+        if args.synthesize:
+            report = synthesize_numeric(load_spec(args.synthesize))
+            if args.json:
+                print(json.dumps(report, ensure_ascii=False, indent=2))
+            else:
+                print(format_synthesis_report(report))
+            return 0 if report["validated"] else 1
         if args.spec:
             spec = load_spec(args.spec)
             report = benchmark_custom(spec)
