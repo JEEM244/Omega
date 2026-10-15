@@ -66,19 +66,35 @@ La captura OMEGA se apoya en wirelab_live.py, requiere PCAPdroid y puede activar
 
 La inspección OMEGA se apoya en pcap_inspector.py y solo lee archivos PCAP/PCAPNG dentro del directorio personal; procesa como máximo 100 paquetes de archivos de hasta 50 MiB y requiere aprobación. El escaneo OMEGA se apoya en netmap.py, usa TCP connect sin root, solo acepta IPv4 privada/loopback/link-local y limita el lote a 100 puertos; el usuario debe indicar AUTORIZADO y después confirmar SI para ejecutar. El comando compactar solicita aprobación antes de reducir el almacenamiento de SQLite; si no hay al menos 1 MiB libre o el doble del tamaño de la base, se niega a ejecutar VACUUM. Los archivos solo se crean dentro de ~/.omega_ai/workspace, con nombres simples y sin sobrescribir archivos existentes. OMEGA rechaza workspace, base de datos y archivos auxiliares WAL/SHM/journal cuando son enlaces simbólicos, limita el tamaño del texto tras interpolar variables y limita cada programa a 100 líneas/instrucciones significativas. No hay evaluación de Python, ejecución de shell ni escritura en rutas arbitrarias.
 
-## OMEGA FORGE 0.1
+## OMEGA FORGE 0.2
 
-FORGE es el primer laboratorio experimental integrado en la terminal. Escribe:
+FORGE es el primer experimento de OMEGA dedicado a generar y evaluar soluciones pequeñas. En la terminal:
 
     /forja
     /forja sum
     /forja max
+    /forja forge_demo.json
+    /forja descubrir forge_discovery.json
 
-Compara candidatos para sumar y encontrar máximos contra conjuntos de pruebas deterministas. El ganador debe pasar todos los casos; la clasificación secundaria usa pasos estimados del intérprete restringido. Esto no son milisegundos ni prueba de superioridad general.
+Desde la línea de comandos se puede ejecutar de la misma forma:
 
-FORGE interpreta una función `solve(datos)` con un subconjunto acotado de sintaxis estilo Python: asignaciones locales, operaciones aritméticas, condiciones, bucles acotados y un conjunto pequeño de funciones integradas. No permite imports del candidato, acceso a atributos, archivos, red, shell ni ejecución arbitraria con `eval` o `exec`. Los límites de fuente, colecciones, iteraciones y pasos evitan experimentos ilimitados.
+    python omega_forge.py
+    python omega_forge.py --spec forge_demo.json
+    python omega_forge.py --synthesize forge_discovery.json
 
-En esta primera versión, los candidatos proceden de plantillas internas conocidas y el laboratorio solo compara soluciones en memoria; no modifica el núcleo, la memoria SQLite ni archivos del usuario. Es una base para futuras funciones de generación de candidatos y evolución controlada, no todavía un sistema autónomo que reescriba su propio código.
+### Comparación de candidatos
+
+Los manifiestos de tipo `--spec` contienen exactamente `name`, `cases` y `candidates`. Cada caso tiene `input` y `expected`; cada candidato tiene `name` y código en `source`, con una única función `def solve(datos):`. FORGE comprueba todos los candidatos antes de ejecutar la suite y solo interpreta una gramática restringida.
+
+### Síntesis desde ejemplos
+
+Los manifiestos de tipo `--synthesize` contienen exactamente `name`, `examples` y `validation`. Cada ejemplo y caso de validación tiene una lista numérica `input` y una salida numérica (`output`). Debe haber entre 3 y 20 ejemplos y entre 1 y 20 casos reservados, con una aridad uniforme de 1 a 3 números.
+
+El sintetizador explora expresiones cortas construidas con entradas, constantes, `abs`, `len` y los operadores `+`, `-`, `*`, `//` y `%`. Elige la expresión más sencilla que coincida tanto con los ejemplos como con la validación. Es síntesis acotada de expresiones, no generación de programas arbitrarios; si no encuentra una expresión válida, informa que no pudo resolver el conjunto.
+
+El intérprete no permite imports de candidatos, llamadas fuera de una lista cerrada, atributos, acceso a archivos, red, shell, `eval` ni `exec`. Limita el código fuente, las colecciones, la profundidad, las iteraciones y los pasos. El manifiesto JSON seleccionado por el usuario se lee como archivo normal, sin seguir enlaces simbólicos.
+
+El puntaje por pasos es una estimación del trabajo dentro del intérprete, no milisegundos ni una medición de rendimiento nativo. Validar contra ejemplos suministrados no demuestra corrección universal. FORGE no reescribe aún el núcleo de OMEGA: es el primer mecanismo verificable para generar alternativas pequeñas y comparar si explican los datos.
 
 ## Seguridad y límites
 
