@@ -28,6 +28,7 @@ MAX_ABS_NUMBER = 1e100
 MAX_TEXT_LENGTH = 4096
 MAX_SPEC_BYTES = 64 * 1024
 MAX_CANDIDATES = 10
+MAX_SYNTH_CANDIDATES = 2000
 MAX_NESTING = 8
 
 
@@ -537,6 +538,140 @@ def load_spec(path_value: str | Path) -> Any:
         return json.loads(raw)
     except json.JSONDecodeError as exc:
         raise ForgeError(f"JSON inválido en el manifiesto: {exc.msg}.") from exc
+
+
+def synthesize_numeric(spec: Any) -> dict[str, Any]:
+    """Synthesize a small arithmetic expression from examples and a held-out validation set."""
+    if not isinstance(spec, dict) or set(spec) != {"name", "examples", "validation"}:
+        raise ForgeError("El manifiesto de descubrimiento requiere exactamente name, examples y validation.")
+    name = spec["name"]
+    if not isinstance(name, str) or not name.strip() or len(name) > 80:
+        raise ForgeError("name debe ser texto de 1 a 80 caracteres.")
+    raw_train, raw_valid = spec["examples"], spec["validation"]
+    if not isinstance(raw_train, list) or not 3 <= len(raw_train) <= 20:
+        raise ForgeError("examples debe contener entre 3 y 20 ejemplos.")
+    if not isinstance(raw_valid, list) or not 1 <= len(raw_valid) <= 20:
+        raise ForgeError("validation debe contener entre 1 y 20 casos reservados.")
+
+    def read_cases(rows: list[Any], label: str) -> list[tuple[list[int | float], int | float]]:
+        parsed: list[tuple[list[int | float], int | float]] = []
+        for index, item in enumerate(rows, start=1):
+            if not isinstance(item, dict) or set(item) != {"input", "output"}:
+                raise ForgeError(f"{label} {index} requiere exactamente input y output.")
+            values, expected = item["input"], item["output"]
+            if not isinstance(values, list) or not 1 <= len(values) <= 3:
+                raise ForgeError(f"{label} {index}: input debe ser una lista de 1 a 3 números.")
+            if any(type(value) not in (int, float) for value in values):
+                raise ForgeError(f"{label} {index}: los datos de entrada deben ser números.")
+            if type(expected) not in (int, float):
+                raise ForgeError(f"{label} {index}: output debe ser numérico.")
+            checked_values = _checked(values)
+            checked_output = _checked(expected)
+            parsed.append((checked_values, checked_output))
+        return parsed
+
+    training = read_cases(raw_train, "Ejemplo")
+    validation = read_cases(raw_valid, "Validación")
+    arities = {len(values) for values, _ in training + validation}
+    if len(arities) != 1:
+        raise ForgeError("Todos los ejemplos y casos de validación deben tener el mismo número de entradas.")
+    arity = next(iter(arities))
+
+    atoms = [f"xs[{index}]" for index in range(arity)]
+    atoms.extend(str(value) for value in (-2, -1, 0, 1, 2, 3, 10))
+    atoms.append("len(xs)")
+    atoms.extend(f"abs(xs[{index}])" for index in range(arity))
+    expressions = set(atoms)
+    for left in atoms:
+        for right in atoms:
+            for symbol in ("+", "-", "*", "//", "%"):
+                expressions.add(f"({left} {symbol} {right})")
+    if len(expressions) > MAX_SYNTH_CANDIDATES:
+        raise ForgeError("La gramática generó más candidatos que el límite permitido.")
+
+    def complexity(expression: str) -> tuple[int, int, str]:
+        try:
+            tree = ast.parse(expression, mode="eval")
+            nodes = sum(1 for _ in ast.walk(tree))
+        except SyntaxError:
+            nodes = MAX_SOURCE_BYTES
+        return nodes, len(expression), expression
+
+    ordered = sorted(expressions, key=complexity)
+    training_matches = 0
+    valid_solutions: list[tuple[tuple[int, int, str], str, int]] = []
+    attempted = 0
+    for expression in ordered:
+        source = f"def solve(xs):\n    return {expression}\n"
+        interpreter = _Interpreter(source)
+        attempted += 1
+        train_ok = True
+        train_steps = 0
+        for values, expected in training:
+            try:
+                actual, steps = interpreter.run(values)
+                train_steps += steps
+            except (ForgeError, ArithmeticError, TypeError, ValueError, IndexError, OverflowError):
+                train_ok = False
+                break
+            if not _equal_typed(actual, expected):
+                train_ok = False
+                break
+        if not train_ok:
+            continue
+        training_matches += 1
+        validation_ok = True
+        validation_steps = 0
+        for values, expected in validation:
+            try:
+                actual, steps = interpreter.run(values)
+                validation_steps += steps
+            except (ForgeError, ArithmeticError, TypeError, ValueError, IndexError, OverflowError):
+                validation_ok = False
+                break
+            if not _equal_typed(actual, expected):
+                validation_ok = False
+                break
+        if validation_ok:
+            valid_solutions.append((complexity(expression), expression, train_steps + validation_steps))
+
+    valid_solutions.sort(key=lambda item: item[0])
+    winner = valid_solutions[0] if valid_solutions else None
+    return {
+        "name": name.strip(),
+        "generated": len(ordered),
+        "attempted": attempted,
+        "training_matches": training_matches,
+        "validation_cases": len(validation),
+        "validated": winner is not None,
+        "expression": winner[1] if winner else None,
+        "source": f"def solve(xs):\n    return {winner[1]}\n" if winner else None,
+        "steps": winner[2] if winner else None,
+        "note": "La expresión solo está validada para los ejemplos entregados; no se garantiza corrección universal.",
+    }
+
+
+def format_synthesis_report(report: dict[str, Any]) -> str:
+    lines = [
+        f"OMEGA FORGE {VERSION} · síntesis aritmética acotada",
+        f"Experimento: {report['name']}",
+        f"Candidatos generados/examinados: {report['generated']}/{report['attempted']}",
+        f"Expresiones que ajustan todos los ejemplos: {report['training_matches']}",
+        f"Casos de validación reservados: {report['validation_cases']}",
+    ]
+    if report["validated"]:
+        lines.extend([
+            "RESULTADO: VALIDADO EN LOS CASOS SUMINISTRADOS",
+            f"Expresión seleccionada: {report['expression']}",
+            "Programa generado:",
+            report["source"].rstrip(),
+            f"Pasos estimados del intérprete: {report['steps']}",
+        ])
+    else:
+        lines.append("RESULTADO: sin expresión que supere ejemplos y validación")
+        lines.append("Prueba con más ejemplos variados o una gramática más amplia.")
+    lines.append(report["note"])
+    return "\n".join(lines)
 
 
 def format_custom_report(report: dict[str, Any]) -> str:
