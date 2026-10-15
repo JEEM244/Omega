@@ -1,0 +1,20 @@
+{
+  "name": "suma de listas",
+  "cases": [
+    {"input": [], "expected": 0},
+    {"input": [7], "expected": 7},
+    {"input": [1, 2, 3, 4, 5], "expected": 15},
+    {"input": [-10, 0, 10], "expected": 0},
+    {"input": [1000000, -1000000, 4, 9], "expected": 13}
+  ],
+  "candidates": [
+    {
+      "name": "suma_integrada",
+      "source": "def solve(xs):\n    return sum(xs)\n"
+    },
+    {
+      "name": "suma_bucle",
+      "source": "def solve(xs):\n    total = 0\n    for value in xs:\n        total = total + value\n    return total\n"
+    }
+  ]
+}
