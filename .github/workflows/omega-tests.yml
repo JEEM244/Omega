@@ -21,6 +21,6 @@ jobs:
       - name: Report Python version
         run: python --version
       - name: Compile standalone OMEGA
-        run: python -m py_compile omega_ai.py test_omega.py netmap.py pcap_inspector.py wirelab_live.py
+        run: python -m py_compile omega_ai.py omega_forge.py test_omega.py netmap.py pcap_inspector.py wirelab_live.py
       - name: Run standalone test suite
         run: python -m unittest -v test_omega
