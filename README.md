@@ -9,7 +9,7 @@
 Requiere Python 3.10 o posterior recomendado. Desde la carpeta del repositorio:
 
 ```bash
-python -m py_compile omega_ai.py
+python -m py_compile omega_ai.py omega_forge.py test_omega.py netmap.py pcap_inspector.py wirelab_live.py
 python -m unittest -v test_omega
 python omega_ai.py
 ```
@@ -18,9 +18,10 @@ En el prompt:
 
 ```text
 ayuda
-objetivo crear un experimento
-pendientes
-aprobar ID
+/forja
+/objetivo crear un experimento
+/pendientes
+/aprobar ID
 ```
 
 Sustituye `ID` por el número mostrado. Antes de ejecutar una acción, OMEGA pide escribir exactamente `SI`. Revisa la operación antes de autorizarla.
@@ -44,11 +45,16 @@ Consulta [`TERMUX_TESTING.md`](TERMUX_TESTING.md) para verificar paso a paso la 
 ## Estructura
 
 - `omega_ai.py` — núcleo de OMEGA y REPL.
-- `test_omega.py` — pruebas unitarias del núcleo.
+- `omega_forge.py` — laboratorio local de algoritmos: compara candidatos mediante un intérprete de sintaxis restringida.
+- `test_omega.py` — pruebas unitarias del núcleo y FORGE.
 - `OMEGA.md` — documentación del lenguaje y seguridad.
 - `OMEGA_PROGRESS.md` — bitácora de desarrollo y recuperación.
 - `demo.omg` — programa demostrativo.
 - `netmap.py`, `pcap_inspector.py`, `wirelab_live.py` — adaptadores ligeros para el laboratorio de red.
+
+## OMEGA FORGE
+
+Ejecuta `/forja` en la terminal para comparar dos experimentos de algoritmos (`sum` y `max`). FORGE interpreta un subconjunto pequeño de sintaxis estilo Python con límites de tamaño, colección, iteraciones y pasos; no usa `eval`, `exec`, shell, imports del candidato ni acceso del candidato a archivos o red. La selección se basa en casos de prueba y pasos estimados del intérprete; **no equivale a una medición de velocidad nativa ni permite afirmar que el código seleccionado sea universalmente mejor**. La primera versión es un evaluador experimental, no un sistema que modifique automáticamente el núcleo.
 
 ## Límites de seguridad
 
