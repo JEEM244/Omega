@@ -1057,7 +1057,7 @@ class OmegaForgeTests(unittest.TestCase):
             finally:
                 store.close()
 
-def test_custom_manifest_compares_pure_algorithms(self):
+    def test_custom_manifest_compares_pure_algorithms(self):
         spec = {
             "name": "suma personalizada",
             "cases": [
