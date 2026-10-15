@@ -267,7 +267,8 @@ class OmegaApprovalAndMemoryTests(unittest.TestCase):
             omega_ai.run_repl(home)
         self.assertIn("Sustituye ID por el número real", errors.getvalue())
         self.assertIn("aprobar 1", errors.getvalue())
-        self.assertIn("usa el número real mostrado", output.getvalue())
+        self.assertIn("autoriza solo con aprobar <ID>", output.getvalue())
+        self.assertIn("luego escribe SI", output.getvalue())
 
     def test_repl_executes_after_exact_si(self):
         home = Path(self.temp.name) / "repl-yes"
