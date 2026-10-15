@@ -45,16 +45,37 @@ Consulta [`TERMUX_TESTING.md`](TERMUX_TESTING.md) para verificar paso a paso la 
 ## Estructura
 
 - `omega_ai.py` — núcleo de OMEGA y REPL.
-- `omega_forge.py` — laboratorio local de algoritmos: compara candidatos mediante un intérprete de sintaxis restringida.
+- `omega_forge.py` — laboratorio local de algoritmos, evaluación de candidatos y síntesis aritmética acotada.
 - `test_omega.py` — pruebas unitarias del núcleo y FORGE.
 - `OMEGA.md` — documentación del lenguaje y seguridad.
 - `OMEGA_PROGRESS.md` — bitácora de desarrollo y recuperación.
 - `demo.omg` — programa demostrativo.
+- `forge_demo.json` — manifiesto reproducible para comparar algoritmos.
+- `forge_discovery.json` — ejemplo guiado para sintetizar y validar una expresión nueva.
 - `netmap.py`, `pcap_inspector.py`, `wirelab_live.py` — adaptadores ligeros para el laboratorio de red.
 
 ## OMEGA FORGE
 
-Ejecuta `/forja` en la terminal para comparar dos experimentos de algoritmos (`sum` y `max`). FORGE interpreta un subconjunto pequeño de sintaxis estilo Python con límites de tamaño, colección, iteraciones y pasos; no usa `eval`, `exec`, shell, imports del candidato ni acceso del candidato a archivos o red. La selección se basa en casos de prueba y pasos estimados del intérprete; **no equivale a una medición de velocidad nativa ni permite afirmar que el código seleccionado sea universalmente mejor**. La primera versión es un evaluador experimental, no un sistema que modifique automáticamente el núcleo.
+En la terminal escribe:
+
+```text
+/forja
+/forja sum
+/forja max
+/forja forge_demo.json
+/forja descubrir forge_discovery.json
+```
+
+FORGE compara estrategias para sumar y encontrar máximos, o carga un manifiesto JSON con candidatos personalizados. También puede sintetizar una expresión aritmética pequeña a partir de ejemplos y comprobarla con un conjunto de validación separado:
+
+```bash
+python omega_forge.py --spec forge_demo.json
+python omega_forge.py --synthesize forge_discovery.json
+```
+
+El evaluador interpreta un subconjunto pequeño de sintaxis estilo Python; no usa `eval`, `exec`, comandos de shell, imports del candidato ni acceso de los candidatos a archivos o red. El sintetizador explora una gramática acotada de expresiones numéricas con entradas de 1 a 3 valores, constantes, `abs`, `len` y operadores `+`, `-`, `*`, `//` y `%`. No es un generador de algoritmos arbitrarios.
+
+Las pruebas deben cubrir ejemplos y una validación reservada. Que una expresión pase los datos entregados no garantiza corrección universal. La puntuación de FORGE usa pasos estimados del intérprete, no milisegundos ni medición de velocidad nativa. FORGE no modifica el núcleo: es una primera base verificable para experimentar antes de añadir evolución automática.
 
 ## Límites de seguridad
 
