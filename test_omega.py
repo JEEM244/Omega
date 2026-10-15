@@ -979,3 +979,18 @@ class TerminalUiTests(unittest.TestCase):
             with patch("builtins.input", side_effect=["/ayuda", "salir"]), redirect_stdout(output):
                 omega_ai.run_repl(home)
             self.assertIn("Comandos del agente:", output.getvalue())
+
+    def test_slash_prefixed_status_and_pending_are_safe(self):
+        with tempfile.TemporaryDirectory() as home:
+            output = io.StringIO()
+            with patch("builtins.input", side_effect=["/estado", "/pendientes", "salir"]), redirect_stdout(output):
+                omega_ai.run_repl(home)
+            rendered = output.getvalue()
+            self.assertIn("Acciones pendientes", rendered)
+            self.assertIn("Operaciones que requieren aprobación", rendered)
+            reopened = omega_ai.OmegaStore(home)
+            try:
+                self.assertEqual(len(reopened.pending()), 1)
+                self.assertEqual(reopened.pending()[0]["kind"], "status")
+            finally:
+                reopened.close()
