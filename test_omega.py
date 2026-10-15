@@ -1057,4 +1057,66 @@ class OmegaForgeTests(unittest.TestCase):
             finally:
                 store.close()
 
+def test_custom_manifest_compares_pure_algorithms(self):
+        spec = {
+            "name": "suma personalizada",
+            "cases": [
+                {"input": [], "expected": 0},
+                {"input": [1, 2, 3], "expected": 6},
+                {"input": [-5, 5, 10], "expected": 10},
+            ],
+            "candidates": [
+                {"name": "integrado", "source": "def solve(xs):\n    return sum(xs)\n"},
+                {"name": "bucle", "source": "def solve(xs):\n    total = 0\n    for value in xs:\n        total = total + value\n    return total\n"},
+            ],
+        }
+        report = omega_forge.benchmark_custom(spec)
+        self.assertEqual(report["task"], "suma personalizada")
+        self.assertEqual(report["cases"], 3)
+        self.assertEqual(report["winner"], "integrado")
+        self.assertTrue(all(candidate["valid"] for candidate in report["ranked"]))
+
+    def test_custom_manifest_rejects_unsafe_candidate_before_running_suite(self):
+        spec = {
+            "name": "seguridad",
+            "cases": [{"input": [], "expected": 0}],
+            "candidates": [
+                {"name": "seguro", "source": "def solve(xs):\n    return sum(xs)\n"},
+                {"name": "no_seguro", "source": "def solve(xs):\n    return open('secret').read()\n"},
+            ],
+        }
+        with self.assertRaisesRegex(omega_forge.ForgeError, "funciones integradas autorizadas"):
+            omega_forge.benchmark_custom(spec)
+
+    def test_custom_manifest_rejects_unexpected_fields_and_bad_cases(self):
+        with self.assertRaisesRegex(omega_forge.ForgeError, "exactamente"):
+            omega_forge.benchmark_custom({
+                "name": "bad", "cases": [{"input": [], "expected": 0}],
+                "candidates": [
+                    {"name": "a", "source": "def solve(xs):\n    return 0\n"},
+                    {"name": "b", "source": "def solve(xs):\n    return 0\n"},
+                ],
+                "execute": True,
+            })
+        spec = {
+            "name": "bad case",
+            "cases": [{"input": [], "expected": 0, "unexpected": True}],
+            "candidates": [
+                {"name": "a", "source": "def solve(xs):\n    return 0\n"},
+                {"name": "b", "source": "def solve(xs):\n    return 0\n"},
+            ],
+        }
+        with self.assertRaisesRegex(omega_forge.ForgeError, "requiere exactamente input y expected"):
+            omega_forge.benchmark_custom(spec)
+
+    def test_interpreter_rejects_large_collection_multiplication(self):
+        interpreter = omega_forge._Interpreter("def solve(xs):\n    return xs * 1000000\n")
+        with self.assertRaisesRegex(omega_forge.ForgeError, "multiplicación excede"):
+            interpreter.run([1, 2])
+
+    def test_interpreter_rejects_extreme_range_without_overflow(self):
+        source = "def solve(xs):\n    for i in range(0, 999999999999999999999999):\n        return i\n    return 0\n"
+        interpreter = omega_forge._Interpreter(source)
+        with self.assertRaisesRegex(omega_forge.ForgeError, "range supera"):
+            interpreter.run([])
 
