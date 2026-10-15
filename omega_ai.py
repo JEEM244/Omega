@@ -752,6 +752,7 @@ def help_text() -> str:
       historial [N]                 Consultar las últimas N operaciones
       aprender "frase" = intención   Proponer ejemplo para aprendizaje local
       objetivo <texto>              Crear un plan transparente a partir de un objetivo
+      forja [sum|max|todo]           Comparar algoritmos en el laboratorio OMEGA FORGE
       pendientes                    Ver operaciones que esperan autorización
       aprobar <ID>                  Aprobar y ejecutar UNA operación pendiente
       rechazar <ID>                 Rechazar una operación pendiente
@@ -928,6 +929,12 @@ def run_repl(home: str | Path) -> int:
                             print(f"      {result}")
                     if not rows:
                         print(terminal_style("Todavía no hay operaciones en el historial.", "muted", color))
+                elif command == "forja":
+                    import omega_forge
+                    task = rest.strip().casefold() or "all"
+                    if task not in ("all", "todo", "sum", "max"):
+                        raise OmegaError("Uso: forja [sum|max|todo]")
+                    print(omega_forge.format_report(task))
                 elif command == "objetivo":
                     if not rest.strip(): raise OmegaError("Escribe el objetivo después de 'objetivo'.")
                     summary, actions = make_plan(rest.strip(), store.training_examples())
