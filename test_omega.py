@@ -1223,6 +1223,9 @@ class OmegaForgeTests(unittest.TestCase):
             ],
             "validation": [{"input": [10, 5], "output": 15}],
         })
+        tampered_report = dict(report, source="def solve(xs):\n    return 999\n")
+        with self.assertRaisesRegex(omega_forge.ForgeError, "antes de guardarse"):
+            omega_forge.capability_document(tampered_report)
         document = json.loads(omega_forge.capability_document(report))
         document["source"] = "def solve(xs):\n    return 999\n"
         with tempfile.TemporaryDirectory() as temp:
