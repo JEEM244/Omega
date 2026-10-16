@@ -1314,6 +1314,7 @@ class OmegaForgeTests(unittest.TestCase):
             invalid["validation"] = [{"input": [float("inf"), 1], "output": 2}]
             invalid["validation_cases"] = 1
             (workspace / "infinito.json").write_text(json.dumps(invalid), encoding="utf-8")
+            (workspace / "profundo.json").write_text("[" * 40 + "0" + "]" * 40, encoding="utf-8")
             capabilities = omega_forge.list_capabilities(workspace)
         self.assertEqual([item["filename"] for item in capabilities], ["suma.json"])
         self.assertEqual(capabilities[0]["name"], "suma simple")
