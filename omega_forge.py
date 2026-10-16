@@ -711,7 +711,7 @@ def capability_document(report: dict[str, Any]) -> str:
     }
     if not isinstance(document["name"], str) or not isinstance(document["expression"], str):
         raise ForgeError("El informe de síntesis no contiene metadatos válidos.")
-    serialized = json.dumps(document, ensure_ascii=False, indent=2) + "\\n"
+    serialized = json.dumps(document, ensure_ascii=False, indent=2) + "\n"
     if len(serialized) > MAX_TEXT_LENGTH:
         raise ForgeError(f"La capacidad supera el límite de {MAX_TEXT_LENGTH} caracteres.")
     return serialized
@@ -722,7 +722,7 @@ def execute_capability(workspace: str | Path, filename: str, data: Any) -> dict[
     import re
 
     if (not isinstance(filename, str)
-            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,79}\\.json", filename)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,79}\.json", filename)
             or filename in (".json", "..json")):
         raise ForgeError("La capacidad debe ser un archivo JSON con nombre simple dentro del workspace.")
     base = Path(workspace).expanduser()
