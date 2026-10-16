@@ -1224,7 +1224,7 @@ class OmegaForgeTests(unittest.TestCase):
             "validation": [{"input": [10, 5], "output": 15}],
         })
         document = json.loads(omega_forge.capability_document(report))
-        document["source"] = "def solve(xs):\\n    return 999\\n"
+        document["source"] = "def solve(xs):\n    return 999\n"
         with tempfile.TemporaryDirectory() as temp:
             workspace = Path(temp) / "workspace"
             workspace.mkdir()
