@@ -596,7 +596,7 @@ def synthesize_numeric(spec: Any) -> dict[str, Any]:
 
     variable_atoms = [f"xs[{index}]" for index in range(arity)]
     extra_atoms = [str(value) for value in (-2, -1, 0, 1, 2, 3, 10)]
-    extra_atoms.append("len(xs)")
+    extra_atoms.extend(("len(xs)", "sum(xs)", "min(xs)", "max(xs)"))
     extra_atoms.extend(f"abs(xs[{index}])" for index in range(arity))
     atoms = variable_atoms + extra_atoms
 
