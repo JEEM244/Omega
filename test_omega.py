@@ -1282,6 +1282,7 @@ class OmegaForgeTests(unittest.TestCase):
         self.assertIn("Se propone conservar la nueva versión", rendered)
         self.assertIn("Archivo creado:", rendered)
         self.assertIn("suma_v2.json — suma de dos valores", rendered)
+        self.assertIn("Versión evolucionada desde suma_v1.json", rendered)
         self.assertIn("Resultado: 15", rendered)
 
     def test_forge_capability_catalog_lists_only_valid_capabilities(self):
