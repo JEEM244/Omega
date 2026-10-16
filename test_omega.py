@@ -1399,6 +1399,7 @@ class OmegaForgeTests(unittest.TestCase):
                 '/forja usar "broken.json [1]',
                 '/forja evolucionar "broken spec.json actual.json nueva.json',
                 '/forja usar missing.json "' + ("x" * 8193) + '"',
+                '/forja usar missing.json "' + ("[" * 40) + "0" + ("]" * 40) + '"',
                 "/salir",
             ]), redirect_stdout(output), redirect_stderr(output):
                 omega_ai.run_repl(Path(temp) / "home")
@@ -1407,6 +1408,7 @@ class OmegaForgeTests(unittest.TestCase):
         self.assertIn("Sintaxis de uso inválida", rendered)
         self.assertIn("Sintaxis de evolución inválida", rendered)
         self.assertIn("superan el límite de 8192 bytes", rendered)
+        self.assertIn("profundidad máxima de 32", rendered)
 
     def test_forge_rejects_excessive_ast_nodes_and_depth(self):
         values = ",".join(["1"] * 256)
