@@ -938,14 +938,11 @@ def propose_capability_evolution(
     except OSError as exc:
         raise ForgeError(f"No se pudo revisar el destino de la evolución: {exc}") from exc
 
-    catalog = {item["filename"]: item for item in list_capabilities(base)}
-    if existing_filename not in catalog:
-        raise ForgeError("La capacidad anterior no existe o no tiene un formato OMEGA FORGE reconocido.")
-
+    old_document, old_interpreter = _load_validated_capability(base, existing_filename)
     candidate = synthesize_numeric(spec)
     if not candidate["validated"]:
         raise ForgeError("La nueva propuesta no superó los casos de validación; no se guarda.")
-    if catalog[existing_filename]["name"] != candidate["name"]:
+    if old_document["name"] != candidate["name"]:
         raise ForgeError("El nombre del objetivo no coincide con la capacidad anterior; no se comparan tareas distintas.")
 
     new_interpreter = _Interpreter(candidate["source"])
@@ -963,17 +960,17 @@ def propose_capability_evolution(
     comparison_cases = candidate["training"] + candidate["validation"]
     for index, case in enumerate(comparison_cases, start=1):
         try:
-            old_result = execute_capability(base, existing_filename, case["input"])
-        except ForgeError as exc:
+            old_result, old_steps = old_interpreter.run(_checked(case["input"]))
+        except (ForgeError, ArithmeticError, TypeError, ValueError, IndexError) as exc:
             old_passes = False
             old_failure = f"la capacidad anterior falló en el caso {index}: {exc}"
             break
-        if not _equal_typed(old_result["result"], case["output"]):
+        if not _equal_typed(old_result, _checked(case["output"])):
             old_passes = False
             old_failure = f"la capacidad anterior produjo un resultado distinto en el caso {index}"
             break
         if index > training_count:
-            old_validation_steps += old_result["steps"]
+            old_validation_steps += old_steps
 
     improved = not old_passes or new_steps < old_validation_steps
     if not improved:
