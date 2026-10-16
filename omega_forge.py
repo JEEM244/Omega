@@ -844,7 +844,7 @@ def format_capability_list(capabilities: list[dict[str, Any]]) -> str:
                 f"{item['validation_cases']} casos"
             )
             lines.append(f"    Expresión: {item['expression']}")
-    lines.append("Las capacidades se interpretan con límites; el listado no ejecuta código.")
+    lines.append(f"Se inspeccionan como máximo {MAX_CAPABILITY_SCAN} entradas; el listado no ejecuta código.")
     return "\n".join(lines)
 
 
