@@ -27,6 +27,7 @@ MAX_INT_BITS = 256
 MAX_ABS_NUMBER = 1e100
 MAX_TEXT_LENGTH = 4096
 MAX_SPEC_BYTES = 64 * 1024
+MAX_JSON_NESTING = 32
 MAX_CANDIDATES = 10
 MAX_CAPABILITY_SCAN = 500
 MAX_SYNTH_CANDIDATES = 3000
@@ -52,6 +53,34 @@ class _Budget:
 class _Returned(Exception):
     def __init__(self, value: Any):
         self.value = value
+
+
+def check_json_nesting(raw: str, max_depth: int = MAX_JSON_NESTING) -> None:
+    """Reject excessive JSON container nesting before invoking the JSON decoder."""
+    depth_stack: list[str] = []
+    in_string = False
+    escaped = False
+    for char in raw:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "[":
+            depth_stack.append("]")
+            if len(depth_stack) > max_depth:
+                raise ForgeError(f"El JSON supera la profundidad máxima de {max_depth}.")
+        elif char == "{":
+            depth_stack.append("}")
+            if len(depth_stack) > max_depth:
+                raise ForgeError(f"El JSON supera la profundidad máxima de {max_depth}.")
+        elif char in ("]", "}") and depth_stack and depth_stack[-1] == char:
+            depth_stack.pop()
 
 
 def _checked(value: Any, depth: int = 0) -> Any:
@@ -551,6 +580,7 @@ def load_spec(path_value: str | Path) -> Any:
         raw = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         raise ForgeError(f"No se pudo leer el manifiesto: {exc}") from exc
+    check_json_nesting(raw)
     try:
         return json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -791,6 +821,7 @@ def _load_validated_capability(workspace: str | Path, filename: str) -> tuple[di
         raise
     except (OSError, UnicodeError) as exc:
         raise ForgeError(f"No se pudo leer la capacidad: {exc}") from exc
+    check_json_nesting(raw)
     try:
         document = json.loads(raw)
     except json.JSONDecodeError as exc:
