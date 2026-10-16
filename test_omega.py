@@ -1390,6 +1390,7 @@ class OmegaForgeTests(unittest.TestCase):
             with patch("builtins.input", side_effect=[
                 '/forja guardar "broken.json capacidad.json',
                 '/forja usar "broken.json [1]',
+                '/forja evolucionar "broken spec.json actual.json nueva.json',
                 '/forja usar missing.json "' + ("x" * 8193) + '"',
                 "/salir",
             ]), redirect_stdout(output), redirect_stderr(output):
@@ -1397,6 +1398,7 @@ class OmegaForgeTests(unittest.TestCase):
             rendered = output.getvalue()
         self.assertIn("Sintaxis de guardado inválida", rendered)
         self.assertIn("Sintaxis de uso inválida", rendered)
+        self.assertIn("Sintaxis de evolución inválida", rendered)
         self.assertIn("superan el límite de 8192 bytes", rendered)
 
     def test_forge_rejects_excessive_ast_nodes_and_depth(self):
