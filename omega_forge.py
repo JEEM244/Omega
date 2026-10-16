@@ -740,7 +740,8 @@ def capability_document(report: dict[str, Any], *, note: str | None = None) -> s
             or not 1 <= document["validation_cases"] <= 20
             or not isinstance(document["validation"], list)
             or len(document["validation"]) != document["validation_cases"]
-            or not isinstance(document["note"], str)):
+            or not isinstance(document["note"], str)
+            or len(document["note"]) > 400):
         raise ForgeError("El informe de síntesis no contiene metadatos válidos.")
     for index, case in enumerate(document["validation"], start=1):
         if (not isinstance(case, dict) or set(case) != {"input", "output"}
