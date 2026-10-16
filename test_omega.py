@@ -1364,6 +1364,26 @@ class OmegaForgeTests(unittest.TestCase):
         result, _ = interpreter.run([100, 20, -3])
         self.assertEqual(result, 117)
 
+    def test_synthesis_discovers_maximum_aggregate(self):
+        spec = {
+            "name": "máximo de valores",
+            "examples": [
+                {"input": [1, 2, 3], "output": 3},
+                {"input": [2, 4, 1], "output": 4},
+                {"input": [-4, -3, -2], "output": -2},
+                {"input": [0, 0, 0], "output": 0},
+            ],
+            "validation": [
+                {"input": [10, 5, 1], "output": 10},
+                {"input": [-10, -20, -3], "output": -3},
+            ],
+        }
+        report = omega_forge.synthesize_numeric(spec)
+        self.assertTrue(report["validated"])
+        interpreter = omega_forge._Interpreter(report["source"])
+        result, _ = interpreter.run([9, 1, 5])
+        self.assertEqual(result, 9)
+
     def test_synthesis_rejects_training_fit_that_fails_held_out_validation(self):
         spec = {
             "name": "regla contradictoria",
