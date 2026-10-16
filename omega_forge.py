@@ -763,8 +763,8 @@ def capability_document(report: dict[str, Any], *, note: str | None = None) -> s
     return serialized
 
 
-def execute_capability(workspace: str | Path, filename: str, data: Any) -> dict[str, Any]:
-    """Execute a saved capability with the restricted interpreter and bounded input."""
+def _load_validated_capability(workspace: str | Path, filename: str) -> tuple[dict[str, Any], _Interpreter]:
+    """Load a saved capability and verify its stored holdout cases exactly once."""
     import re
 
     if (not isinstance(filename, str)
@@ -826,6 +826,12 @@ def execute_capability(workspace: str | Path, filename: str, data: Any) -> dict[
             raise ForgeError(f"La capacidad falla su validación almacenada (caso {index}): {exc}") from exc
         if not _equal_typed(actual, _checked(case["output"])):
             raise ForgeError(f"La capacidad no supera la validación almacenada (caso {index}).")
+    return document, interpreter
+
+
+def execute_capability(workspace: str | Path, filename: str, data: Any) -> dict[str, Any]:
+    """Execute a saved capability with the restricted interpreter and bounded input."""
+    document, interpreter = _load_validated_capability(workspace, filename)
     result, steps = interpreter.run(_checked(data))
     return {
         "name": document["name"],
