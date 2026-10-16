@@ -71,7 +71,7 @@ En la terminal escribe:
 /forja usar suma.json "[10, 5]"
 ```
 
-FORGE compara estrategias para sumar y encontrar máximos, o carga un manifiesto JSON con candidatos personalizados. También puede sintetizar una expresión aritmética pequeña a partir de ejemplos y comprobarla con un conjunto de validación separado: Con `guardar`, prepara una capacidad en JSON dentro de `workspace/` y la encola como operación pendiente: revisa su descripción y aprueba solo el ID real con `SI`. Con `usar`, ejecuta la capacidad guardada mediante el intérprete restringido, con límites de datos y pasos; no ejecuta Python arbitrario. `lista` muestra las capacidades reconocidas guardadas localmente.
+FORGE compara estrategias para sumar y encontrar máximos, o carga un manifiesto JSON con candidatos personalizados. También puede sintetizar una expresión aritmética pequeña a partir de ejemplos y comprobarla con un conjunto de validación separado: Con `guardar`, prepara una capacidad en JSON dentro de `workspace/` y la encola como operación pendiente: revisa su descripción y aprueba solo el ID real con `SI`. Con `usar`, ejecuta la capacidad guardada mediante el intérprete restringido, con límites de datos y pasos; no ejecuta Python arbitrario. `lista` muestra las capacidades reconocidas guardadas localmente. El archivo conserva los casos de validación reservados y FORGE los vuelve a comprobar antes de cada ejecución.
 
 ```bash
 python omega_forge.py --spec forge_demo.json
