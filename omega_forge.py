@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Any
 from pathlib import Path
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 MAX_SOURCE_BYTES = 8192
 MAX_CASES = 100
 MAX_COLLECTION_ITEMS = 256
