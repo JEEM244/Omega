@@ -23,7 +23,7 @@ Actualizado: 2026-10-15.
 - `test_omega.py`: última CI confirmada ejecutó **110 pruebas**; se añadió una prueba adicional para síntesis con tres entradas y dos operaciones anidadas, por lo que la nueva revisión espera 111. Las pruebas cubren núcleo, lenguaje, memoria, permisos, herramientas de red y OMEGA FORGE.
 - `netmap.py`: escáner TCP acotado para IPv4 privada/loopback/link-local.
 - `wirelab_live.py`: receptor UDP en loopback para exportación PCAPdroid; ahora exige duración de 1–60 segundos y 1–500 paquetes, incluso si se ejecuta de forma independiente.
-- `omega_forge.py`: intérprete de candidatos con gramática restringida, límites de tamaño y pasos, comparador de algoritmos y sintetizador aritmético guiado por ejemplos. La síntesis ahora explora fórmulas con hasta dos operaciones anidadas para entradas de 1 a 3 valores, además de expresiones atómicas y combinaciones simples. Mantiene un máximo de 3000 candidatos y validación reservada; no ejecuta código Python arbitrario ni modifica automáticamente el núcleo.\n- `forge_demo.json` y `forge_discovery.json` son manifiestos reproducibles para comparar candidatos y descubrir expresiones.\n- `README.md`, `OMEGA.md`, `demo.omg` y `.github/workflows/omega-tests.yml` son parte del proyecto independiente.
+- `omega_forge.py`: intérprete de candidatos con gramática restringida, límites de tamaño y pasos, comparador de algoritmos y sintetizador aritmético guiado por ejemplos. La síntesis explora fórmulas con hasta dos operaciones anidadas para entradas de 1 a 3 valores, con máximo de 3000 candidatos y validación reservada; no ejecuta Python arbitrario.\n- FORGE puede serializar una función validada como capacidad JSON y reutilizarla desde `workspace/` mediante el intérprete restringido. Guardar requiere encolar y aprobar una operación `file_create`; ejecutar una capacidad no puede importar módulos ni acceder a archivos o red desde el candidato.\n- La capacidad puede comprobarse con `/forja guardar forge_discovery.json suma.json`, aprobar el ID real con `SI` y después ejecutar `/forja usar suma.json "[10, 5]"`.\n- `forge_demo.json` y `forge_discovery.json` son manifiestos reproducibles para comparar candidatos y descubrir expresiones.\n- `README.md`, `OMEGA.md`, `demo.omg` y `.github/workflows/omega-tests.yml` son parte del proyecto independiente.
 
 ## Validación CI
 
@@ -46,7 +46,7 @@ Actualizado: 2026-10-15.
 
 ## Pendientes reales
 
-1. Completar la revisión estática de los flujos de error, recuperación tras interrupciones, entradas malformadas y límites de recursos; agregar pruebas si se detectan huecos concretos.
+1. Continuar la revisión estática de entradas malformadas, límites de recursos y flujos de recuperación; la primera versión de FORGE crea y reutiliza capacidades aritméticas acotadas, pero todavía no modifica automáticamente el núcleo.
 2. Sincronizar la versión final de `main` en Termux y ejecutar compilación y todas las pruebas actuales en el dispositivo.
 3. Revisar la cola local y rechazar las solicitudes PCAPdroid antiguas que ya no se vayan a usar; no aprobarlas accidentalmente.
 4. Dejar para el final la prueba real de PCAPdroid con consentimiento VPN, captura limitada y posterior inspección del archivo generado.
