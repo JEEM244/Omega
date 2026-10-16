@@ -115,6 +115,14 @@ Para reutilizarlo, proporciona datos JSON explícitos:
 /forja usar suma.json "[10, 5]"
 ```
 
+Para comparar una nueva síntesis con una capacidad existente del mismo objetivo:
+
+```text
+/forja evolucionar tarea.json actual.json nueva.json
+```
+
+Solo propone guardar una versión nueva si supera la validación y la anterior falla, o si ambas pasan y la nueva requiere menos pasos estimados del intérprete. Nunca sobrescribe la anterior; la nueva escritura requiere aprobación. Los pasos no equivalen a milisegundos ni garantizan mayor velocidad nativa.
+
 FORGE conserva los casos de validación reservados dentro del archivo y vuelve a ejecutarlos antes de cada uso. Ejecuta la función mediante su intérprete limitado, con restricciones de tamaño, profundidad, colección y pasos. Rechaza rutas fuera de `workspace`, enlaces simbólicos, formatos desconocidos y sintaxis no permitida. La validación con ejemplos no demuestra corrección universal; trata cada capacidad como experimental.
 
 ## Seguridad y límites
