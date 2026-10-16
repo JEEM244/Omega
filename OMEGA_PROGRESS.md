@@ -64,6 +64,33 @@ python omega_ai.py
 
 En el REPL, comenzar con `ayuda`, `auditar` y operaciones locales sin efectos laterales. No probar captura hasta estar listo para autorizar PCAPdroid y el permiso VPN de Android.
 
+## Prueba manual OMEGA FORGE 0.2 en Termux
+
+Esta fase no requiere PCAPdroid ni permisos VPN. En el teléfono, desde la carpeta del repositorio:
+
+```bash
+git pull
+python -m py_compile omega_ai.py omega_forge.py test_omega.py netmap.py pcap_inspector.py wirelab_live.py
+python -m unittest -v test_omega
+python omega_forge.py --synthesize forge_max_discovery.json
+python omega_ai.py
+```
+
+En la terminal interactiva, prueba en este orden:
+
+```text
+/forja descubrir forge_max_discovery.json
+/forja guardar forge_max_discovery.json maximo.json
+/pendientes
+/aprobar ID_REAL
+SI
+/forja lista
+/forja usar maximo.json "[9, 1, 5]"
+/forja evolucionar forge_max_discovery.json maximo.json maximo_v2.json
+```
+
+Sustituye `ID_REAL` por el identificador que OMEGA muestre y confirma solo después de revisar la descripción. El resultado esperado al usar la capacidad es `9`. La última orden debería indicar que no se necesita una nueva versión si la capacidad guardada ya tiene el mismo resultado y el mismo coste estimado; no debería encolar un cambio. Esta prueba valida el ciclo local de FORGE, no la evolución automática del núcleo de OMEGA.
+
 ## Recuperación
 
 Antes de pausar, actualizar esta bitácora con el SHA real y la última validación de CI. No fusionar ni borrar el repositorio histórico. No afirmar que el proyecto está terminado antes de la validación real en Termux.
