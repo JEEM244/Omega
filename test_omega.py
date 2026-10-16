@@ -5,7 +5,7 @@ import socket
 import struct
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, redirect_stderr
 from unittest.mock import patch, Mock
 from pathlib import Path
 
@@ -1262,6 +1262,19 @@ class OmegaForgeTests(unittest.TestCase):
             self.assertIn("suma.json — suma de dos valores", rendered)
             self.assertIn("Capacidad: suma de dos valores", rendered)
             self.assertIn("Resultado: 11", rendered)
+
+    def test_terminal_handles_unclosed_quotes_in_forge_commands(self):
+        with tempfile.TemporaryDirectory() as temp:
+            output = io.StringIO()
+            with patch("builtins.input", side_effect=[
+                '/forja guardar "broken.json capacidad.json',
+                '/forja usar "broken.json [1]',
+                "/salir",
+            ]), redirect_stdout(output), redirect_stderr(output):
+                omega_ai.run_repl(Path(temp) / "home")
+            rendered = output.getvalue()
+        self.assertIn("Sintaxis de guardado inválida", rendered)
+        self.assertIn("Sintaxis de uso inválida", rendered)
 
     def test_forge_rejects_excessive_ast_nodes_and_depth(self):
         values = ",".join(["1"] * 256)
