@@ -1138,6 +1138,13 @@ class OmegaForgeTests(unittest.TestCase):
             self.assertEqual(loaded["name"], "carga")
             self.assertEqual(omega_forge.benchmark_custom(loaded)["winner"], "integrado")
 
+    def test_manifest_loader_rejects_excessive_json_nesting(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "deep.json"
+            path.write_text("[" * 2000 + "0" + "]" * 2000, encoding="utf-8")
+            with self.assertRaisesRegex(omega_forge.ForgeError, "profundidad de anidamiento"):
+                omega_forge.load_spec(path)
+
     def test_custom_manifest_loader_rejects_symlinks(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir) / "real.json"
