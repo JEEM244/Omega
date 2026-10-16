@@ -1171,6 +1171,75 @@ class OmegaForgeTests(unittest.TestCase):
             finally:
                 store.close()
 
+    def test_validated_capability_can_be_saved_and_reused(self):
+        spec = {
+            "name": "sumar tres valores",
+            "examples": [
+                {"input": [1, 2, 3], "output": 6},
+                {"input": [2, 4, 6], "output": 12},
+                {"input": [7, -2, 5], "output": 10},
+            ],
+            "validation": [{"input": [10, 5, 1], "output": 16}],
+        }
+        report = omega_forge.synthesize_numeric(spec)
+        document = omega_forge.capability_document(report)
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp) / "workspace"
+            workspace.mkdir()
+            (workspace / "sumar_tres.json").write_text(document, encoding="utf-8")
+            result = omega_forge.execute_capability(workspace, "sumar_tres.json", [100, 20, -3])
+        self.assertEqual(result["result"], 117)
+        self.assertEqual(result["validation_cases"], 1)
+        self.assertIn("no garantiza corrección universal", result["note"])
+
+    def test_capability_runner_rejects_unsafe_paths_and_untrusted_syntax(self):
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp) / "workspace"
+            workspace.mkdir()
+            outside = Path(temp) / "outside.json"
+            outside.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(omega_forge.ForgeError, "nombre simple"):
+                omega_forge.execute_capability(workspace, "../outside.json", [1])
+            (workspace / "bad.json").write_text(json.dumps({
+                "format": "omega-forge-capability-v1",
+                "name": "maliciosa",
+                "expression": "import os",
+                "source": "import os\\ndef solve(xs):\\n    return 1\\n",
+                "validation_cases": 1,
+                "note": "test",
+            }), encoding="utf-8")
+            with self.assertRaises(omega_forge.ForgeError):
+                omega_forge.execute_capability(workspace, "bad.json", [1])
+
+    def test_terminal_can_save_and_reuse_a_validated_forge_capability(self):
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp) / "home"
+            spec_path = Path(temp) / "discover.json"
+            spec = {
+                "name": "suma de dos valores",
+                "examples": [
+                    {"input": [1, 2], "output": 3},
+                    {"input": [2, 4], "output": 6},
+                    {"input": [7, -2], "output": 5},
+                ],
+                "validation": [{"input": [10, 5], "output": 15}],
+            }
+            spec_path.write_text(json.dumps(spec), encoding="utf-8")
+            output = io.StringIO()
+            with patch("builtins.input", side_effect=[
+                f"/forja guardar {spec_path} suma.json",
+                "/pendientes",
+                "aprobar 1",
+                "SI",
+                '/forja usar suma.json "[5, 6]"',
+                "/salir",
+            ]), redirect_stdout(output):
+                omega_ai.run_repl(home)
+            rendered = output.getvalue()
+            self.assertIn("Archivo creado:", rendered)
+            self.assertIn("Capacidad: suma de dos valores", rendered)
+            self.assertIn("Resultado: 11", rendered)
+
     def test_forge_normalizes_invalid_power_operations(self):
         for source in (
             'def solve(xs):\n    return "x" ** 2\n',
