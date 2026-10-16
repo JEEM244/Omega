@@ -269,7 +269,10 @@ class _Interpreter:
             if isinstance(node.op, ast.Pow):
                 if type(right) not in (int, float) or abs(right) > 32:
                     raise ForgeError("El exponente debe estar entre -32 y 32.")
-                return _checked(left ** right)
+                try:
+                    return _checked(left ** right)
+                except (ArithmeticError, TypeError, ValueError) as exc:
+                    raise ForgeError(f"Potencia inválida: {exc}") from exc
             try:
                 return _checked(_BINARY[type(node.op)](left, right))
             except (ArithmeticError, TypeError, ValueError) as exc:
