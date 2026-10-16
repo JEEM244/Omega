@@ -898,6 +898,7 @@ def list_capabilities(workspace: str | Path) -> list[dict[str, Any]]:
             "name": document["name"],
             "expression": document["expression"],
             "validation_cases": document["validation_cases"],
+            "note": document["note"],
         })
     return sorted(capabilities, key=lambda item: item["filename"].casefold())
 
@@ -1012,6 +1013,8 @@ def format_capability_list(capabilities: list[dict[str, Any]]) -> str:
                 f"{item['validation_cases']} casos"
             )
             lines.append(f"    Expresión: {item['expression']}")
+            if item.get("note", "").startswith("Versión evolucionada desde "):
+                lines.append(f"    {item['note']}")
     lines.append(f"Se inspeccionan como máximo {MAX_CAPABILITY_SCAN} entradas; el listado no ejecuta código.")
     return "\n".join(lines)
 
