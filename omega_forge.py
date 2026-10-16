@@ -28,7 +28,7 @@ MAX_ABS_NUMBER = 1e100
 MAX_TEXT_LENGTH = 4096
 MAX_SPEC_BYTES = 64 * 1024
 MAX_CANDIDATES = 10
-MAX_SYNTH_CANDIDATES = 2000
+MAX_SYNTH_CANDIDATES = 3000
 MAX_NESTING = 8
 
 
@@ -577,17 +577,58 @@ def synthesize_numeric(spec: Any) -> dict[str, Any]:
         raise ForgeError("Todos los ejemplos y casos de validación deben tener el mismo número de entradas.")
     arity = next(iter(arities))
 
-    atoms = [f"xs[{index}]" for index in range(arity)]
-    atoms.extend(str(value) for value in (-2, -1, 0, 1, 2, 3, 10))
-    atoms.append("len(xs)")
-    atoms.extend(f"abs(xs[{index}])" for index in range(arity))
-    expressions = set(atoms)
+    variable_atoms = [f"xs[{index}]" for index in range(arity)]
+    extra_atoms = [str(value) for value in (-2, -1, 0, 1, 2, 3, 10)]
+    extra_atoms.append("len(xs)")
+    extra_atoms.extend(f"abs(xs[{index}])" for index in range(arity))
+    atoms = variable_atoms + extra_atoms
+
+    # Prioritize expressions with up to two operators over the input variables.
+    # This allows discoveries such as x0 + x1 + x2 without unbounded search.
+    expressions: list[str] = []
+    seen_expressions: set[str] = set()
+
+    def add_expression(expression: str) -> None:
+        if expression not in seen_expressions:
+            if len(expressions) >= MAX_SYNTH_CANDIDATES:
+                raise ForgeError(
+                    f"La gramática supera el límite de {MAX_SYNTH_CANDIDATES} candidatos."
+                )
+            seen_expressions.add(expression)
+            expressions.append(expression)
+
+    for atom in atoms:
+        add_expression(atom)
+
+    symbols = ("+", "-", "*", "//", "%")
+    variable_pairs: list[str] = []
+    for left in variable_atoms:
+        for right in variable_atoms:
+            for symbol in symbols:
+                expression = f"({left} {symbol} {right})"
+                variable_pairs.append(expression)
+                add_expression(expression)
+
+    for inner in variable_pairs:
+        for variable in variable_atoms:
+            for symbol in symbols:
+                add_expression(f"({inner} {symbol} {variable})")
+                add_expression(f"({variable} {symbol} {inner})")
+
+    # Fill the remaining budget with one-operation combinations that include
+    # constants, absolute values, and input length.
     for left in atoms:
         for right in atoms:
-            for symbol in ("+", "-", "*", "//", "%"):
-                expressions.add(f"({left} {symbol} {right})")
-    if len(expressions) > MAX_SYNTH_CANDIDATES:
-        raise ForgeError("La gramática generó más candidatos que el límite permitido.")
+            for symbol in symbols:
+                expression = f"({left} {symbol} {right})"
+                if expression not in seen_expressions and len(expressions) < MAX_SYNTH_CANDIDATES:
+                    add_expression(expression)
+
+    expressions = sorted(expressions, key=lambda expression: (
+        sum(1 for _ in ast.walk(ast.parse(expression, mode="eval"))),
+        len(expression),
+        expression,
+    ))
 
     def complexity(expression: str) -> tuple[int, int, str]:
         try:
