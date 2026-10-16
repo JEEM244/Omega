@@ -49,6 +49,7 @@ Consulta [`TERMUX_TESTING.md`](TERMUX_TESTING.md) para verificar paso a paso la 
 - `test_omega.py` — pruebas unitarias del núcleo y FORGE.
 - `OMEGA.md` — documentación del lenguaje y seguridad.
 - `OMEGA_PROGRESS.md` — bitácora de desarrollo y recuperación.
+- `CHANGELOG.md` — cambios y límites por versión.
 - `demo.omg` — programa demostrativo.
 - `forge_demo.json` — manifiesto reproducible para comparar algoritmos.
 - `forge_discovery.json` — ejemplo guiado para sintetizar y validar una expresión nueva.
