@@ -1213,6 +1213,25 @@ class OmegaForgeTests(unittest.TestCase):
         self.assertEqual([item["filename"] for item in capabilities], ["suma.json"])
         self.assertEqual(capabilities[0]["name"], "suma simple")
 
+    def test_capability_rechecks_stored_validation_before_execution(self):
+        report = omega_forge.synthesize_numeric({
+            "name": "suma",
+            "examples": [
+                {"input": [1, 2], "output": 3},
+                {"input": [2, 4], "output": 6},
+                {"input": [7, -2], "output": 5},
+            ],
+            "validation": [{"input": [10, 5], "output": 15}],
+        })
+        document = json.loads(omega_forge.capability_document(report))
+        document["source"] = "def solve(xs):\\n    return 999\\n"
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp) / "workspace"
+            workspace.mkdir()
+            (workspace / "tampered.json").write_text(json.dumps(document), encoding="utf-8")
+            with self.assertRaisesRegex(omega_forge.ForgeError, "no supera la validación almacenada"):
+                omega_forge.execute_capability(workspace, "tampered.json", [2, 3])
+
     def test_capability_runner_rejects_unsafe_paths_and_untrusted_syntax(self):
         with tempfile.TemporaryDirectory() as temp:
             workspace = Path(temp) / "workspace"
@@ -1222,11 +1241,12 @@ class OmegaForgeTests(unittest.TestCase):
             with self.assertRaisesRegex(omega_forge.ForgeError, "nombre simple"):
                 omega_forge.execute_capability(workspace, "../outside.json", [1])
             (workspace / "bad.json").write_text(json.dumps({
-                "format": "omega-forge-capability-v1",
+                "format": "omega-forge-capability-v2",
                 "name": "maliciosa",
                 "expression": "import os",
                 "source": "import os\ndef solve(xs):\n    return 1\n",
                 "validation_cases": 1,
+                "validation": [{"input": [1], "output": 1}],
                 "note": "test",
             }), encoding="utf-8")
             with self.assertRaises(omega_forge.ForgeError):
