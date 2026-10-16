@@ -738,15 +738,20 @@ def capability_document(report: dict[str, Any]) -> str:
             or len(document["validation"]) != document["validation_cases"]
             or not isinstance(document["note"], str)):
         raise ForgeError("El informe de síntesis no contiene metadatos válidos.")
-    for case in document["validation"]:
+    for index, case in enumerate(document["validation"], start=1):
         if (not isinstance(case, dict) or set(case) != {"input", "output"}
                 or not isinstance(case["input"], list)
                 or not 1 <= len(case["input"]) <= 3
                 or any(type(value) not in (int, float) for value in case["input"])
                 or type(case["output"]) not in (int, float)):
             raise ForgeError("El informe contiene casos de validación inválidos.")
-        _checked(case["input"])
-        _checked(case["output"])
+        input_data, expected = _checked(case["input"]), _checked(case["output"])
+        try:
+            actual, _ = _Interpreter(source).run(input_data)
+        except (ForgeError, ArithmeticError, TypeError, ValueError, IndexError) as exc:
+            raise ForgeError(f"La capacidad no supera la validación antes de guardarse (caso {index}): {exc}") from exc
+        if not _equal_typed(actual, expected):
+            raise ForgeError(f"La capacidad no supera la validación antes de guardarse (caso {index}).")
     serialized = json.dumps(document, ensure_ascii=False, indent=2) + "\n"
     if len(serialized) > MAX_TEXT_LENGTH:
         raise ForgeError(f"La capacidad supera el límite de {MAX_TEXT_LENGTH} caracteres.")
