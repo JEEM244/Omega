@@ -1364,6 +1364,12 @@ class OmegaForgeTests(unittest.TestCase):
         result, _ = interpreter.run([100, 20, -3])
         self.assertEqual(result, 117)
 
+    def test_bundled_maximum_discovery_manifest_is_reproducible(self):
+        manifest = Path(__file__).resolve().parent / "forge_max_discovery.json"
+        report = omega_forge.synthesize_numeric(omega_forge.load_spec(manifest))
+        self.assertTrue(report["validated"])
+        self.assertEqual(report["expression"], "max(xs)")
+
     def test_synthesis_discovers_maximum_aggregate(self):
         spec = {
             "name": "máximo de valores",
