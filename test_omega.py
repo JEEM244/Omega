@@ -1193,6 +1193,27 @@ class OmegaForgeTests(unittest.TestCase):
         result, _ = interpreter.run([20, 22])
         self.assertEqual(result, 42)
 
+    def test_synthesis_discovers_formula_with_three_inputs_and_two_operations(self):
+        spec = {
+            "name": "sumar tres valores",
+            "examples": [
+                {"input": [1, 2, 3], "output": 6},
+                {"input": [2, 4, 6], "output": 12},
+                {"input": [7, -2, 5], "output": 10},
+                {"input": [-3, 5, 8], "output": 10},
+            ],
+            "validation": [
+                {"input": [10, 5, 1], "output": 16},
+                {"input": [-4, -3, -2], "output": -9},
+            ],
+        }
+        report = omega_forge.synthesize_numeric(spec)
+        self.assertTrue(report["validated"])
+        self.assertLessEqual(report["generated"], omega_forge.MAX_SYNTH_CANDIDATES)
+        interpreter = omega_forge._Interpreter(report["source"])
+        result, _ = interpreter.run([100, 20, -3])
+        self.assertEqual(result, 117)
+
     def test_synthesis_rejects_training_fit_that_fails_held_out_validation(self):
         spec = {
             "name": "regla contradictoria",
