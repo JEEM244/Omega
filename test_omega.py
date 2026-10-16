@@ -1204,7 +1204,7 @@ class OmegaForgeTests(unittest.TestCase):
                 "format": "omega-forge-capability-v1",
                 "name": "maliciosa",
                 "expression": "import os",
-                "source": "import os\\ndef solve(xs):\\n    return 1\\n",
+                "source": "import os\ndef solve(xs):\n    return 1\n",
                 "validation_cases": 1,
                 "note": "test",
             }), encoding="utf-8")
