@@ -1241,7 +1241,8 @@ class OmegaForgeTests(unittest.TestCase):
             self.assertIn("Resultado: 11", rendered)
 
     def test_forge_rejects_excessive_ast_nodes_and_depth(self):
-        many_nodes = "def solve(xs):\n    return " + "+".join(["1"] * 300) + "\n"
+        values = ",".join(["1"] * 256)
+        many_nodes = f"def solve(xs):\n    return sum([{values}]) + sum([{values}])\n"
         with self.assertRaisesRegex(omega_forge.ForgeError, "nodos de sintaxis"):
             omega_forge._Interpreter(many_nodes)
 
