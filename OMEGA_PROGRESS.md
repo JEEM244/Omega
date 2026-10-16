@@ -28,9 +28,9 @@ Actualizado: 2026-10-15.
 
 ## Validación CI
 
-- Último commit de código y pruebas validado: `d4f34571ff80e5c392d6b08489f4b97c902150c7`.
-- GitHub Actions run **38843680395**: `success`; compilación y **123 pruebas** completadas correctamente en Python **3.10, 3.11, 3.12 y 3.13**.
-- Enlace: https://github.com/JEEM244/Omega/actions/runs/38843680395
+- Último commit de código y pruebas validado: `6e91fdd84d5ce7c19641e718a7c54b0f68c8a4e9`.
+- GitHub Actions run **38843927443**: `success`; compilación y **123 pruebas** completadas correctamente en Python **3.10, 3.11, 3.12 y 3.13**.
+- Enlace: https://github.com/JEEM244/Omega/actions/runs/38843927443
 - El rechazo concurrente usa una actualización SQLite condicional sobre `status='pending'`; la prueba de carrera confirma que aprobar y rechazar simultáneamente solo puede tener un ganador y que el estado coincide con el efecto ejecutado.
 - WireLab Live intenta detener PCAPdroid desde `finally`, incluso si falla la recepción o escritura; una prueba simulada comprueba la llamada de detención sin iniciar una captura real.
 - `TERMUX_TESTING.md` documenta una secuencia manual por etapas para aprobación, auditoría y memoria persistente; la captura real queda separada.
