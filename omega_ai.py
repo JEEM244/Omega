@@ -960,7 +960,9 @@ def run_repl(home: str | Path) -> int:
                             )
                             print(f"Comparación: {existing_filename} → {new_filename}")
                             print(f"Expresión candidata: {proposal['expression']}")
-                            print(f"Pasos estimados: anterior={proposal['existing_steps']} · nueva={proposal['new_steps']}")
+                            previous_steps = proposal["existing_steps"]
+                            previous_label = previous_steps if previous_steps is not None else "no comparable (falló validación)"
+                            print(f"Pasos estimados: anterior={previous_label} · nueva={proposal['new_steps']}")
                             print(f"Evaluación: {proposal['reason']}")
                             if proposal["improved"]:
                                 print("Se propone conservar la nueva versión sin sobrescribir la anterior.")
