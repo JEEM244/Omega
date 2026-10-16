@@ -1,6 +1,6 @@
 # OMEGA AI — bitácora de progreso y recuperación
 
-Actualizado: 2026-10-14.
+Actualizado: 2026-10-15.
 
 ## Repositorio oficial
 
@@ -15,15 +15,15 @@ Actualizado: 2026-10-14.
 
 - `omega_ai.py`: núcleo OMEGA AI 0.3.0, lenguaje declarativo, variables/condiciones, planificación simbólica, memoria SQLite, historial, clasificador Naive Bayes local limitado y autorización por operación.
 - Interfaz de terminal añadida: bienvenida compacta inspirada en agentes CLI como Claude Code, prompt `❯`, acento naranja ANSI sin dependencias, etiquetas para errores/resultados y alias de comandos con `/` (por ejemplo, `/ayuda`). Respeta `NO_COLOR` y no añade interfaz web ni dependencias pesadas.
-- Se añadieron cuatro pruebas de interfaz de terminal (bienvenida, degradación sin color, secuencias ANSI y comando `/ayuda`). El total esperado es **89 pruebas**, pendiente de confirmar en GitHub Actions y en Termux; no se declara validado todavía.
+- La interfaz de terminal incluye bienvenida, degradación sin color, secuencias ANSI y alias `/` para comandos. OMEGA FORGE se añadió como módulo separado para comparar algoritmos y sintetizar expresiones aritméticas limitadas desde ejemplos.
 - Las aprobaciones ahora se reclaman mediante una actualización SQLite condicional antes de ejecutar efectos laterales; pruebas con dos conexiones verifican que una misma aprobación no se ejecute dos veces por una carrera.
 - Si el proceso se interrumpe después de reclamar una aprobación, esta no se reintenta automáticamente. La autorización local no protege contra un proceso que manipule directamente los archivos o la base de datos.
 - Se rechazan enlaces simbólicos para la base de datos, workspace y sidecars SQLite, incluido `-journal`.
 - `pcap_inspector.py`: valida longitudes capturadas/originales, snaplen y fracciones de timestamp en PCAP; valida bloques y opciones PCAPNG, respeta la resolución de timestamp `if_tsresol` y reporta paquetes malformados en vez de omitirlos silenciosamente. El decodificador UDP rechaza longitudes inválidas o truncadas.
-- `test_omega.py`: **85 pruebas automatizadas** que cubren lenguaje, memoria, autorización, carreras de aprobación/rechazo, errores de limpieza de PCAPdroid, enlaces simbólicos, NetMap y PCAP/PCAPNG.
+- `test_omega.py`: última CI confirmada ejecutó **110 pruebas**; se añadió una prueba adicional para síntesis con tres entradas y dos operaciones anidadas, por lo que la nueva revisión espera 111. Las pruebas cubren núcleo, lenguaje, memoria, permisos, herramientas de red y OMEGA FORGE.
 - `netmap.py`: escáner TCP acotado para IPv4 privada/loopback/link-local.
 - `wirelab_live.py`: receptor UDP en loopback para exportación PCAPdroid; ahora exige duración de 1–60 segundos y 1–500 paquetes, incluso si se ejecuta de forma independiente.
-- `README.md`, `OMEGA.md`, `demo.omg` y `.github/workflows/omega-tests.yml` son parte del proyecto independiente.
+- `omega_forge.py`: intérprete de candidatos con gramática restringida, límites de tamaño y pasos, comparador de algoritmos y sintetizador aritmético guiado por ejemplos. La síntesis ahora explora fórmulas con hasta dos operaciones anidadas para entradas de 1 a 3 valores, además de expresiones atómicas y combinaciones simples. Mantiene un máximo de 3000 candidatos y validación reservada; no ejecuta código Python arbitrario ni modifica automáticamente el núcleo.\n- `forge_demo.json` y `forge_discovery.json` son manifiestos reproducibles para comparar candidatos y descubrir expresiones.\n- `README.md`, `OMEGA.md`, `demo.omg` y `.github/workflows/omega-tests.yml` son parte del proyecto independiente.
 
 ## Validación CI
 
@@ -42,12 +42,12 @@ Actualizado: 2026-10-14.
 - Memoria persistente verificada: se guardó `prueba_persistencia = funciona_omega`, se leyó correctamente y se recuperó de nuevo después de cerrar y reiniciar OMEGA.
 - Aprobación, rechazo individual e historial se probaron manualmente. Las solicitudes de auditoría antiguas se rechazaron y la cola quedó vacía.
 - El usuario creó dos solicitudes de captura PCAPdroid (IDs locales 7 y 8), pero no autorizó ninguna; no se ha ejecutado una captura real. Se reservan para la última fase.
-- La prueba manual del dispositivo corresponde al código anterior a los últimos commits de corrección; antes de cerrar el proyecto hay que sincronizar `main` en Termux y repetir compilación y las 84 pruebas.
+- La prueba manual del dispositivo corresponde al código anterior a los últimos commits de corrección; antes de cerrar el proyecto hay que sincronizar `main` en Termux y repetir compilación y todas las pruebas actuales.
 
 ## Pendientes reales
 
 1. Completar la revisión estática de los flujos de error, recuperación tras interrupciones, entradas malformadas y límites de recursos; agregar pruebas si se detectan huecos concretos.
-2. Sincronizar la versión final de `main` en Termux y ejecutar compilación y las 84 pruebas en el dispositivo.
+2. Sincronizar la versión final de `main` en Termux y ejecutar compilación y todas las pruebas actuales en el dispositivo.
 3. Revisar la cola local y rechazar las solicitudes PCAPdroid antiguas que ya no se vayan a usar; no aprobarlas accidentalmente.
 4. Dejar para el final la prueba real de PCAPdroid con consentimiento VPN, captura limitada y posterior inspección del archivo generado.
 5. Corregir cualquier fallo reproducible y repetir CI antes de declarar una versión estable.
@@ -57,7 +57,7 @@ Actualizado: 2026-10-14.
 ```bash
 git clone https://github.com/JEEM244/Omega.git
 cd Omega
-python -m py_compile omega_ai.py test_omega.py netmap.py pcap_inspector.py wirelab_live.py
+python -m py_compile omega_ai.py omega_forge.py test_omega.py netmap.py pcap_inspector.py wirelab_live.py
 python -m unittest -v test_omega
 python omega_ai.py
 ```
