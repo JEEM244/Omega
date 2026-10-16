@@ -897,6 +897,96 @@ def list_capabilities(workspace: str | Path) -> list[dict[str, Any]]:
     return sorted(capabilities, key=lambda item: item["filename"].casefold())
 
 
+def propose_capability_evolution(
+    workspace: str | Path,
+    existing_filename: str,
+    spec: Any,
+    new_filename: str,
+) -> dict[str, Any]:
+    """Compare a newly synthesized capability with an existing one without overwriting either."""
+    import re
+
+    pattern = r"[A-Za-z0-9][A-Za-z0-9_.-]{0,79}\.json"
+    for label, filename in (("actual", existing_filename), ("nuevo", new_filename)):
+        if not isinstance(filename, str) or not re.fullmatch(pattern, filename):
+            raise ForgeError(f"El nombre del archivo {label} debe ser simple y terminar en .json.")
+    if existing_filename == new_filename:
+        raise ForgeError("La evolución debe guardarse con un nombre nuevo; no se sobrescriben capacidades.")
+    base = Path(workspace).expanduser()
+    if base.is_symlink():
+        raise ForgeError("El workspace no puede ser un enlace simbólico.")
+    try:
+        base = base.resolve(strict=True)
+        target = base / new_filename
+        if target.is_symlink() or target.exists():
+            raise ForgeError("El archivo de la nueva versión ya existe; elige otro nombre.")
+    except OSError as exc:
+        raise ForgeError(f"No se pudo revisar el destino de la evolución: {exc}") from exc
+
+    catalog = {item["filename"]: item for item in list_capabilities(base)}
+    if existing_filename not in catalog:
+        raise ForgeError("La capacidad anterior no existe o no tiene un formato OMEGA FORGE reconocido.")
+
+    candidate = synthesize_numeric(spec)
+    if not candidate["validated"]:
+        raise ForgeError("La nueva propuesta no superó los casos de validación; no se guarda.")
+    if catalog[existing_filename]["name"] != candidate["name"]:
+        raise ForgeError("El nombre del objetivo no coincide con la capacidad anterior; no se comparan tareas distintas.")
+
+    new_interpreter = _Interpreter(candidate["source"])
+    new_steps = 0
+    for case in candidate["validation"]:
+        actual, steps = new_interpreter.run(case["input"])
+        if not _equal_typed(actual, case["output"]):
+            raise ForgeError("La nueva propuesta no supera una validación repetida; no se guarda.")
+        new_steps += steps
+
+    old_steps = 0
+    old_passes = True
+    old_failure = None
+    for index, case in enumerate(candidate["validation"], start=1):
+        try:
+            old_result = execute_capability(base, existing_filename, case["input"])
+        except ForgeError as exc:
+            old_passes = False
+            old_failure = f"la capacidad anterior falló en el caso {index}: {exc}"
+            break
+        if not _equal_typed(old_result["result"], case["output"]):
+            old_passes = False
+            old_failure = f"la capacidad anterior produjo un resultado distinto en el caso {index}"
+            break
+        old_steps += old_result["steps"]
+
+    improved = not old_passes or new_steps < old_steps
+    if not improved:
+        return {
+            "improved": False,
+            "name": candidate["name"],
+            "expression": candidate["expression"],
+            "existing_filename": existing_filename,
+            "new_filename": new_filename,
+            "existing_steps": old_steps,
+            "new_steps": new_steps,
+            "reason": "La capacidad anterior ya pasa la validación y no requiere más pasos estimados.",
+            "content": None,
+        }
+
+    reason = old_failure or (
+        f"ambas versiones pasan la validación, pero la nueva requiere {new_steps} pasos frente a {old_steps}"
+    )
+    return {
+        "improved": True,
+        "name": candidate["name"],
+        "expression": candidate["expression"],
+        "existing_filename": existing_filename,
+        "new_filename": new_filename,
+        "existing_steps": old_steps,
+        "new_steps": new_steps,
+        "reason": reason,
+        "content": capability_document(candidate),
+    }
+
+
 def format_capability_list(capabilities: list[dict[str, Any]]) -> str:
     lines = [f"OMEGA FORGE {VERSION} · capacidades locales"]
     if not capabilities:
