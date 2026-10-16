@@ -1227,6 +1227,56 @@ class OmegaForgeTests(unittest.TestCase):
         self.assertGreater(proposal["existing_steps"], proposal["new_steps"])
         self.assertIn("omega-forge-capability-v2", proposal["content"])
 
+    def test_terminal_can_propose_approve_and_use_forge_evolution(self):
+        spec = {
+            "name": "suma de dos valores",
+            "examples": [
+                {"input": [1, 2], "output": 3},
+                {"input": [2, 4], "output": 6},
+                {"input": [7, -2], "output": 5},
+            ],
+            "validation": [
+                {"input": [10, 5], "output": 15},
+                {"input": [-4, -3], "output": -7},
+            ],
+        }
+        candidate = omega_forge.synthesize_numeric(spec)
+        slower = dict(
+            candidate,
+            expression="suma_lineal(xs)",
+            source="""def solve(xs):
+    total = 0
+    for value in xs:
+        total = total + value
+    return total
+""",
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp) / "home"
+            workspace = home / "workspace"
+            workspace.mkdir(parents=True)
+            (workspace / "suma_v1.json").write_text(
+                omega_forge.capability_document(slower), encoding="utf-8"
+            )
+            spec_path = Path(temp) / "sum_spec.json"
+            spec_path.write_text(json.dumps(spec), encoding="utf-8")
+            output = io.StringIO()
+            with patch("builtins.input", side_effect=[
+                f"/forja evolucionar {spec_path} suma_v1.json suma_v2.json",
+                "/pendientes",
+                "aprobar 1",
+                "SI",
+                "/forja lista",
+                '/forja usar suma_v2.json "[10, 5]"',
+                "/salir",
+            ]), redirect_stdout(output):
+                omega_ai.run_repl(home)
+            rendered = output.getvalue()
+        self.assertIn("Se propone conservar la nueva versión", rendered)
+        self.assertIn("Archivo creado:", rendered)
+        self.assertIn("suma_v2.json — suma de dos valores", rendered)
+        self.assertIn("Resultado: 15", rendered)
+
     def test_forge_capability_catalog_lists_only_valid_capabilities(self):
         report = omega_forge.synthesize_numeric({
             "name": "suma simple",
