@@ -1252,12 +1252,14 @@ class OmegaForgeTests(unittest.TestCase):
                 "/pendientes",
                 "aprobar 1",
                 "SI",
+                "/forja lista",
                 '/forja usar suma.json "[5, 6]"',
                 "/salir",
             ]), redirect_stdout(output):
                 omega_ai.run_repl(home)
             rendered = output.getvalue()
             self.assertIn("Archivo creado:", rendered)
+            self.assertIn("suma.json — suma de dos valores", rendered)
             self.assertIn("Capacidad: suma de dos valores", rendered)
             self.assertIn("Resultado: 11", rendered)
 
