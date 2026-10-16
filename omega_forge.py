@@ -900,7 +900,9 @@ def list_capabilities(workspace: str | Path) -> list[dict[str, Any]]:
         try:
             if path.stat().st_size > MAX_SPEC_BYTES:
                 continue
-            document = json.loads(path.read_text(encoding="utf-8"))
+            raw = path.read_text(encoding="utf-8")
+            check_json_nesting(raw)
+            document = json.loads(raw)
             if not isinstance(document, dict) or set(document) != required:
                 continue
             if document.get("format") != "omega-forge-capability-v2":
@@ -933,7 +935,7 @@ def list_capabilities(workspace: str | Path) -> list[dict[str, Any]]:
                 _checked(case["input"])
                 _checked(case["output"])
             _Interpreter(document["source"])
-        except (OSError, UnicodeError, json.JSONDecodeError, ForgeError):
+        except (OSError, UnicodeError, json.JSONDecodeError, RecursionError, ForgeError):
             continue
         capabilities.append({
             "filename": path.name,
