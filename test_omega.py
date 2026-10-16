@@ -1210,7 +1210,7 @@ class OmegaForgeTests(unittest.TestCase):
         slower = dict(
             candidate,
             expression="suma_lineal(xs)",
-            source="def solve(xs):\\n    total = 0\\n    for value in xs:\\n        total = total + value\\n    return total\\n",
+            source="def solve(xs):\n    total = 0\n    for value in xs:\n        total = total + value\n    return total\n",
         )
         with tempfile.TemporaryDirectory() as temp:
             workspace = Path(temp) / "workspace"
