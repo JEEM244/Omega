@@ -1302,6 +1302,11 @@ class OmegaForgeTests(unittest.TestCase):
                 omega_forge.capability_document(report), encoding="utf-8"
             )
             (workspace / "otro.json").write_text('{"name":"no es capacidad"}', encoding="utf-8")
+            invalid = json.loads(omega_forge.capability_document(report))
+            invalid["name"] = "valor infinito"
+            invalid["validation"] = [{"input": [float("inf"), 1], "output": 2}]
+            invalid["validation_cases"] = 1
+            (workspace / "infinito.json").write_text(json.dumps(invalid), encoding="utf-8")
             capabilities = omega_forge.list_capabilities(workspace)
         self.assertEqual([item["filename"] for item in capabilities], ["suma.json"])
         self.assertEqual(capabilities[0]["name"], "suma simple")
