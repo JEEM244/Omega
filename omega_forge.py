@@ -700,6 +700,10 @@ def synthesize_numeric(spec: Any) -> dict[str, Any]:
         "generated": len(ordered),
         "attempted": attempted,
         "training_matches": training_matches,
+        "training": [
+            {"input": list(values), "output": expected}
+            for values, expected in training
+        ],
         "validation_cases": len(validation),
         "validation": [
             {"input": list(values), "output": expected}
@@ -941,10 +945,12 @@ def propose_capability_evolution(
             raise ForgeError("La nueva propuesta no supera una validación repetida; no se guarda.")
         new_steps += steps
 
-    old_steps = 0
+    old_validation_steps = 0
     old_passes = True
     old_failure = None
-    for index, case in enumerate(candidate["validation"], start=1):
+    training_count = len(candidate["training"])
+    comparison_cases = candidate["training"] + candidate["validation"]
+    for index, case in enumerate(comparison_cases, start=1):
         try:
             old_result = execute_capability(base, existing_filename, case["input"])
         except ForgeError as exc:
@@ -955,9 +961,10 @@ def propose_capability_evolution(
             old_passes = False
             old_failure = f"la capacidad anterior produjo un resultado distinto en el caso {index}"
             break
-        old_steps += old_result["steps"]
+        if index > training_count:
+            old_validation_steps += old_result["steps"]
 
-    improved = not old_passes or new_steps < old_steps
+    improved = not old_passes or new_steps < old_validation_steps
     if not improved:
         return {
             "improved": False,
@@ -965,14 +972,14 @@ def propose_capability_evolution(
             "expression": candidate["expression"],
             "existing_filename": existing_filename,
             "new_filename": new_filename,
-            "existing_steps": old_steps,
+            "existing_steps": old_validation_steps,
             "new_steps": new_steps,
             "reason": "La capacidad anterior ya pasa la validación y no requiere más pasos estimados.",
             "content": None,
         }
 
     reason = old_failure or (
-        f"ambas versiones pasan la validación, pero la nueva requiere {new_steps} pasos frente a {old_steps}"
+        f"ambas versiones pasan la validación, pero la nueva requiere {new_steps} pasos frente a {old_validation_steps}"
     )
     return {
         "improved": True,
