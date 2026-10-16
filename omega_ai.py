@@ -755,6 +755,8 @@ def help_text() -> str:
       objetivo <texto>              Crear un plan transparente a partir de un objetivo
       forja [sum|max|todo|spec.json] Comparar algoritmos con pruebas locales
       forja descubrir spec.json       Sintetizar una expresión desde ejemplos y validación
+      forja guardar spec.json nombre.json  Proponer guardar una capacidad validada
+      forja usar nombre.json "[1, 2]"      Ejecutar una capacidad guardada de forma acotada
       pendientes                    Ver operaciones que esperan autorización
       aprobar <ID>                  Aprobar y ejecutar UNA operación pendiente
       rechazar <ID>                 Rechazar una operación pendiente
