@@ -82,7 +82,7 @@ python omega_forge.py --synthesize forge_max_discovery.json
 
 El evaluador interpreta un subconjunto pequeño de sintaxis estilo Python; no usa `eval`, `exec`, comandos de shell, imports del candidato ni acceso de los candidatos a archivos o red. El sintetizador explora una gramática acotada de expresiones numéricas con entradas de 1 a 3 valores, constantes, `abs`, `len`, `sum`, `min`, `max` y operadores `+`, `-`, `*`, `//` y `%`. La búsqueda incluye fórmulas con hasta dos operaciones anidadas sobre las entradas, por ejemplo una suma de tres valores; el número de candidatos sigue limitado. No es un generador de algoritmos arbitrarios.
 
-Las pruebas deben cubrir ejemplos y una validación reservada. Que una expresión pase los datos entregados no garantiza corrección universal. La puntuación de FORGE usa pasos estimados del intérprete, no milisegundos ni medición de velocidad nativa. FORGE no modifica el núcleo: es una primera base verificable para experimentar antes de añadir evolución automática.
+Las pruebas deben cubrir ejemplos y una validación reservada. Que una expresión pase los datos entregados no garantiza corrección universal. La puntuación de FORGE usa pasos estimados del intérprete, no milisegundos ni medición de velocidad nativa. FORGE no modifica el código del núcleo: puede proponer nuevas versiones de capacidades guardadas, con aprobación y sin sobrescribir la anterior. La evolución automática del código central de OMEGA todavía no está implementada.
 
 ## Límites de seguridad
 
