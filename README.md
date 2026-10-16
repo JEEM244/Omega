@@ -64,9 +64,13 @@ En la terminal escribe:
 /forja max
 /forja forge_demo.json
 /forja descubrir forge_discovery.json
+/forja guardar forge_discovery.json suma.json
+/pendientes
+/aprobar ID
+/forja usar suma.json "[10, 5]"
 ```
 
-FORGE compara estrategias para sumar y encontrar máximos, o carga un manifiesto JSON con candidatos personalizados. También puede sintetizar una expresión aritmética pequeña a partir de ejemplos y comprobarla con un conjunto de validación separado:
+FORGE compara estrategias para sumar y encontrar máximos, o carga un manifiesto JSON con candidatos personalizados. También puede sintetizar una expresión aritmética pequeña a partir de ejemplos y comprobarla con un conjunto de validación separado: Con `guardar`, prepara una capacidad en JSON dentro de `workspace/` y la encola como operación pendiente: revisa su descripción y aprueba solo el ID real con `SI`. Con `usar`, ejecuta la capacidad guardada mediante el intérprete restringido, con límites de datos y pasos; no ejecuta Python arbitrario.
 
 ```bash
 python omega_forge.py --spec forge_demo.json
