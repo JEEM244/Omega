@@ -965,6 +965,7 @@ class TerminalUiTests(unittest.TestCase):
         self.assertIn("✳  OMEGA AI", rendered)
         self.assertIn("offline", rendered)
         self.assertIn("sin root", rendered)
+        self.assertIn("/forja", rendered)
         self.assertIn("/tmp/omega-test", rendered)
         self.assertNotIn("\\033[", rendered)
 
