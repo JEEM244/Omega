@@ -14,6 +14,7 @@ import math
 import os
 import platform
 import shutil
+import shlex
 import re
 import sqlite3
 import sys
@@ -937,6 +938,35 @@ def run_repl(home: str | Path) -> int:
                     try:
                         if task in ("all", "todo", "sum", "max"):
                             print(omega_forge.format_report(task))
+                        elif task.startswith("guardar "):
+                            parts = shlex.split(raw_task[len("guardar "):])
+                            if len(parts) != 2:
+                                raise OmegaError('Uso: forja guardar "spec.json" capacidad.json')
+                            spec_path, filename = parts
+                            if not SAFE_FILENAME.fullmatch(filename) or not filename.casefold().endswith(".json"):
+                                raise OmegaError("La capacidad debe tener un nombre simple terminado en .json.")
+                            report = omega_forge.synthesize_numeric(omega_forge.load_spec(spec_path))
+                            if not report["validated"]:
+                                raise OmegaError("No se guarda una capacidad sin validación satisfactoria.")
+                            content = omega_forge.capability_document(report)
+                            print(omega_forge.format_synthesis_report(report))
+                            queue_actions(store, [{"kind": "file_create", "args": {
+                                "filename": filename, "content": content
+                            }}])
+                        elif task.startswith("usar "):
+                            parts = shlex.split(raw_task[len("usar "):])
+                            if len(parts) != 2:
+                                raise OmegaError('Uso: forja usar capacidad.json "[1, 2, 3]"')
+                            filename, raw_data = parts
+                            try:
+                                data = json.loads(raw_data)
+                            except json.JSONDecodeError as exc:
+                                raise OmegaError("Los datos deben ser JSON válido; ejemplo: '[1, 2, 3]'.") from exc
+                            result = omega_forge.execute_capability(store.workspace, filename, data)
+                            print(f"Capacidad: {result['name']}")
+                            print("Resultado:", json.dumps(result["result"], ensure_ascii=False))
+                            print(f"Pasos estimados: {result['steps']}")
+                            print(result["note"])
                         elif task.startswith("descubrir "):
                             spec_arg = raw_task[len("descubrir "):].strip()
                             spec_path = parse_quoted(spec_arg) if spec_arg.startswith('"') else spec_arg
