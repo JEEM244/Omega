@@ -54,7 +54,7 @@ Consulta [`TERMUX_TESTING.md`](TERMUX_TESTING.md) para verificar paso a paso la 
 - `forge_discovery.json` — ejemplo guiado para sintetizar y validar una expresión nueva.
 - `netmap.py`, `pcap_inspector.py`, `wirelab_live.py` — adaptadores ligeros para el laboratorio de red.
 
-## OMEGA FORGE
+## OMEGA FORGE 0.2.0
 
 En la terminal escribe:
 
