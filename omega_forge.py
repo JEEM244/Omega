@@ -695,6 +695,82 @@ def synthesize_numeric(spec: Any) -> dict[str, Any]:
     }
 
 
+def capability_document(report: dict[str, Any]) -> str:
+    """Serialize only a validated synthesized function as a reusable data-only capability."""
+    if not isinstance(report, dict) or not report.get("validated") or not isinstance(report.get("source"), str):
+        raise ForgeError("Solo se puede guardar una capacidad que haya superado la validación.")
+    source = report["source"]
+    _Interpreter(source)
+    document = {
+        "format": "omega-forge-capability-v1",
+        "name": report.get("name"),
+        "expression": report.get("expression"),
+        "source": source,
+        "validation_cases": report.get("validation_cases"),
+        "note": "Validada solo para los casos de prueba declarados; no garantiza corrección universal.",
+    }
+    if not isinstance(document["name"], str) or not isinstance(document["expression"], str):
+        raise ForgeError("El informe de síntesis no contiene metadatos válidos.")
+    serialized = json.dumps(document, ensure_ascii=False, indent=2) + "\\n"
+    if len(serialized) > MAX_TEXT_LENGTH:
+        raise ForgeError(f"La capacidad supera el límite de {MAX_TEXT_LENGTH} caracteres.")
+    return serialized
+
+
+def execute_capability(workspace: str | Path, filename: str, data: Any) -> dict[str, Any]:
+    """Execute a saved capability with the restricted interpreter and bounded input."""
+    import re
+
+    if (not isinstance(filename, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,79}\\.json", filename)
+            or filename in (".json", "..json")):
+        raise ForgeError("La capacidad debe ser un archivo JSON con nombre simple dentro del workspace.")
+    base = Path(workspace).expanduser()
+    if base.is_symlink():
+        raise ForgeError("El workspace no puede ser un enlace simbólico.")
+    try:
+        base = base.resolve(strict=True)
+        target = base / filename
+        if target.is_symlink():
+            raise ForgeError("La capacidad no puede ser un enlace simbólico.")
+        resolved = target.resolve(strict=True)
+        if resolved.parent != base or not resolved.is_file():
+            raise ForgeError("La capacidad debe ser un archivo regular directamente dentro del workspace.")
+        if resolved.stat().st_size > MAX_SPEC_BYTES:
+            raise ForgeError(f"La capacidad supera {MAX_SPEC_BYTES} bytes.")
+        raw = resolved.read_text(encoding="utf-8")
+    except ForgeError:
+        raise
+    except (OSError, UnicodeError) as exc:
+        raise ForgeError(f"No se pudo leer la capacidad: {exc}") from exc
+    try:
+        document = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ForgeError(f"JSON de capacidad inválido: {exc.msg}.") from exc
+    required = {"format", "name", "expression", "source", "validation_cases", "note"}
+    if not isinstance(document, dict) or set(document) != required:
+        raise ForgeError("El archivo no tiene el formato de capacidad OMEGA FORGE.")
+    if document["format"] != "omega-forge-capability-v1":
+        raise ForgeError("Versión de capacidad no compatible.")
+    if not isinstance(document["name"], str) or not document["name"].strip() or len(document["name"]) > 80:
+        raise ForgeError("Nombre de capacidad inválido.")
+    if not isinstance(document["expression"], str) or len(document["expression"]) > MAX_SOURCE_BYTES:
+        raise ForgeError("Expresión de capacidad inválida.")
+    if not isinstance(document["source"], str):
+        raise ForgeError("Código de capacidad inválido.")
+    if type(document["validation_cases"]) is not int or not 1 <= document["validation_cases"] <= 20:
+        raise ForgeError("Número de casos de validación inválido.")
+    interpreter = _Interpreter(document["source"])
+    result, steps = interpreter.run(_checked(data))
+    return {
+        "name": document["name"],
+        "result": result,
+        "steps": steps,
+        "validation_cases": document["validation_cases"],
+        "note": document["note"],
+    }
+
+
 def format_synthesis_report(report: dict[str, Any]) -> str:
     lines = [
         f"OMEGA FORGE {VERSION} · síntesis aritmética acotada",
