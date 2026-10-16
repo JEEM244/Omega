@@ -890,6 +890,9 @@ def list_capabilities(workspace: str | Path) -> list[dict[str, Any]]:
             )
             if not valid_cases:
                 continue
+            for case in validation:
+                _checked(case["input"])
+                _checked(case["output"])
             _Interpreter(document["source"])
         except (OSError, UnicodeError, json.JSONDecodeError, ForgeError):
             continue
