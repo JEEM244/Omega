@@ -555,6 +555,8 @@ def load_spec(path_value: str | Path) -> Any:
         return json.loads(raw)
     except json.JSONDecodeError as exc:
         raise ForgeError(f"JSON inválido en el manifiesto: {exc.msg}.") from exc
+    except RecursionError as exc:
+        raise ForgeError("El manifiesto JSON supera la profundidad de anidamiento permitida.") from exc
 
 
 def synthesize_numeric(spec: Any) -> dict[str, Any]:
