@@ -96,7 +96,7 @@ El intérprete no permite imports de candidatos, llamadas fuera de una lista cer
 
 El puntaje por pasos es una estimación del trabajo dentro del intérprete, no milisegundos ni una medición de rendimiento nativo. Validar contra ejemplos suministrados no demuestra corrección universal. FORGE no reescribe aún el núcleo de OMEGA: es el primer mecanismo verificable para generar alternativas pequeñas y comparar si explican los datos.
 
-## OMEGA FORGE: guardar y reutilizar capacidades
+## OMEGA FORGE 0.2: descubrir, guardar y evolucionar capacidades
 
 FORGE puede sintetizar una expresión aritmética desde ejemplos y validarla con casos reservados. Para guardar una capacidad validada dentro de `~/.omega_ai/workspace`, usa:
 
