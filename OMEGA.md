@@ -115,7 +115,7 @@ Para reutilizarlo, proporciona datos JSON explícitos:
 /forja usar suma.json "[10, 5]"
 ```
 
-FORGE ejecuta la función mediante su intérprete limitado, con restricciones de tamaño, profundidad, colección y pasos. Rechaza rutas fuera de `workspace`, enlaces simbólicos, formatos desconocidos y sintaxis no permitida. La validación con ejemplos no demuestra corrección universal; trata cada capacidad como experimental.
+FORGE conserva los casos de validación reservados dentro del archivo y vuelve a ejecutarlos antes de cada uso. Ejecuta la función mediante su intérprete limitado, con restricciones de tamaño, profundidad, colección y pasos. Rechaza rutas fuera de `workspace`, enlaces simbólicos, formatos desconocidos y sintaxis no permitida. La validación con ejemplos no demuestra corrección universal; trata cada capacidad como experimental.
 
 ## Seguridad y límites
 
