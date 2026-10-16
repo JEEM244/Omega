@@ -1223,9 +1223,15 @@ class OmegaForgeTests(unittest.TestCase):
             )
             self.assertTrue((workspace / "suma_v1.json").is_file())
             self.assertFalse((workspace / "suma_v2.json").exists())
+            (workspace / "suma_v2.json").write_text(proposal["content"], encoding="utf-8")
+            unchanged = omega_forge.propose_capability_evolution(
+                workspace, "suma_v2.json", spec, "suma_v3.json"
+            )
         self.assertTrue(proposal["improved"])
         self.assertGreater(proposal["existing_steps"], proposal["new_steps"])
         self.assertIn("omega-forge-capability-v2", proposal["content"])
+        self.assertFalse(unchanged["improved"])
+        self.assertIsNone(unchanged["content"])
 
     def test_terminal_can_propose_approve_and_use_forge_evolution(self):
         spec = {
