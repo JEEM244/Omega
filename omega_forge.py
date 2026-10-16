@@ -701,6 +701,10 @@ def synthesize_numeric(spec: Any) -> dict[str, Any]:
         "attempted": attempted,
         "training_matches": training_matches,
         "validation_cases": len(validation),
+        "validation": [
+            {"input": list(values), "output": expected}
+            for values, expected in validation
+        ],
         "validated": winner is not None,
         "expression": winner[1] if winner else None,
         "source": f"def solve(xs):\n    return {winner[1]}\n" if winner else None,
@@ -716,11 +720,12 @@ def capability_document(report: dict[str, Any]) -> str:
     source = report["source"]
     _Interpreter(source)
     document = {
-        "format": "omega-forge-capability-v1",
+        "format": "omega-forge-capability-v2",
         "name": report.get("name"),
         "expression": report.get("expression"),
         "source": source,
         "validation_cases": report.get("validation_cases"),
+        "validation": report.get("validation"),
         "note": "Validada solo para los casos de prueba declarados; no garantiza corrección universal.",
     }
     if (not isinstance(document["name"], str) or not document["name"].strip()
@@ -729,8 +734,19 @@ def capability_document(report: dict[str, Any]) -> str:
             or len(document["expression"]) > MAX_SOURCE_BYTES
             or type(document["validation_cases"]) is not int
             or not 1 <= document["validation_cases"] <= 20
+            or not isinstance(document["validation"], list)
+            or len(document["validation"]) != document["validation_cases"]
             or not isinstance(document["note"], str)):
         raise ForgeError("El informe de síntesis no contiene metadatos válidos.")
+    for case in document["validation"]:
+        if (not isinstance(case, dict) or set(case) != {"input", "output"}
+                or not isinstance(case["input"], list)
+                or not 1 <= len(case["input"]) <= 3
+                or any(type(value) not in (int, float) for value in case["input"])
+                or type(case["output"]) not in (int, float)):
+            raise ForgeError("El informe contiene casos de validación inválidos.")
+        _checked(case["input"])
+        _checked(case["output"])
     serialized = json.dumps(document, ensure_ascii=False, indent=2) + "\n"
     if len(serialized) > MAX_TEXT_LENGTH:
         raise ForgeError(f"La capacidad supera el límite de {MAX_TEXT_LENGTH} caracteres.")
@@ -767,10 +783,10 @@ def execute_capability(workspace: str | Path, filename: str, data: Any) -> dict[
         document = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise ForgeError(f"JSON de capacidad inválido: {exc.msg}.") from exc
-    required = {"format", "name", "expression", "source", "validation_cases", "note"}
+    required = {"format", "name", "expression", "source", "validation_cases", "validation", "note"}
     if not isinstance(document, dict) or set(document) != required:
         raise ForgeError("El archivo no tiene el formato de capacidad OMEGA FORGE.")
-    if document["format"] != "omega-forge-capability-v1":
+    if document["format"] != "omega-forge-capability-v2":
         raise ForgeError("Versión de capacidad no compatible.")
     if not isinstance(document["name"], str) or not document["name"].strip() or len(document["name"]) > 80:
         raise ForgeError("Nombre de capacidad inválido.")
@@ -780,9 +796,26 @@ def execute_capability(workspace: str | Path, filename: str, data: Any) -> dict[
         raise ForgeError("Código de capacidad inválido.")
     if not isinstance(document["note"], str) or len(document["note"]) > 400:
         raise ForgeError("Nota de capacidad inválida.")
-    if type(document["validation_cases"]) is not int or not 1 <= document["validation_cases"] <= 20:
-        raise ForgeError("Número de casos de validación inválido.")
+    validation = document["validation"]
+    if (type(document["validation_cases"]) is not int
+            or not 1 <= document["validation_cases"] <= 20
+            or not isinstance(validation, list)
+            or len(validation) != document["validation_cases"]):
+        raise ForgeError("Número o conjunto de casos de validación inválido.")
     interpreter = _Interpreter(document["source"])
+    for index, case in enumerate(validation, start=1):
+        if (not isinstance(case, dict) or set(case) != {"input", "output"}
+                or not isinstance(case["input"], list)
+                or not 1 <= len(case["input"]) <= 3
+                or any(type(value) not in (int, float) for value in case["input"])
+                or type(case["output"]) not in (int, float)):
+            raise ForgeError(f"Caso de validación almacenado inválido: {index}.")
+        try:
+            actual, _ = interpreter.run(_checked(case["input"]))
+        except (ForgeError, ArithmeticError, TypeError, ValueError, IndexError) as exc:
+            raise ForgeError(f"La capacidad falla su validación almacenada (caso {index}): {exc}") from exc
+        if not _equal_typed(actual, _checked(case["output"])):
+            raise ForgeError(f"La capacidad no supera la validación almacenada (caso {index}).")
     result, steps = interpreter.run(_checked(data))
     return {
         "name": document["name"],
@@ -810,7 +843,7 @@ def list_capabilities(workspace: str | Path) -> list[dict[str, Any]]:
     except (OSError, RuntimeError) as exc:
         raise ForgeError(f"No se pudo examinar el workspace: {exc}") from exc
 
-    required = {"format", "name", "expression", "source", "validation_cases", "note"}
+    required = {"format", "name", "expression", "source", "validation_cases", "validation", "note"}
     capabilities: list[dict[str, Any]] = []
     for path in entries:
         if path.suffix.casefold() != ".json" or path.is_symlink() or not path.is_file():
@@ -821,7 +854,7 @@ def list_capabilities(workspace: str | Path) -> list[dict[str, Any]]:
             document = json.loads(path.read_text(encoding="utf-8"))
             if not isinstance(document, dict) or set(document) != required:
                 continue
-            if document.get("format") != "omega-forge-capability-v1":
+            if document.get("format") != "omega-forge-capability-v2":
                 continue
             if (not isinstance(document.get("name"), str) or not document["name"].strip()
                     or len(document["name"]) > 80
@@ -832,7 +865,20 @@ def list_capabilities(workspace: str | Path) -> list[dict[str, Any]]:
                     or not isinstance(document.get("note"), str)
                     or len(document["note"]) > 400):
                 continue
-            if type(document.get("validation_cases")) is not int or not 1 <= document["validation_cases"] <= 20:
+            validation = document.get("validation")
+            if (type(document.get("validation_cases")) is not int
+                    or not 1 <= document["validation_cases"] <= 20
+                    or not isinstance(validation, list)
+                    or len(validation) != document["validation_cases"]):
+                continue
+            valid_cases = all(
+                isinstance(case, dict) and set(case) == {"input", "output"}
+                and isinstance(case["input"], list) and 1 <= len(case["input"]) <= 3
+                and all(type(value) in (int, float) for value in case["input"])
+                and type(case["output"]) in (int, float)
+                for case in validation
+            )
+            if not valid_cases:
                 continue
             _Interpreter(document["source"])
         except (OSError, UnicodeError, json.JSONDecodeError, ForgeError):
