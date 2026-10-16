@@ -757,6 +757,7 @@ def help_text() -> str:
       forja descubrir spec.json       Sintetizar una expresión desde ejemplos y validación
       forja lista                    Listar capacidades guardadas
       forja guardar spec.json nombre.json  Proponer guardar una capacidad validada
+      forja evolucionar spec.json actual.json nueva.json  Comparar y proponer una mejora
       forja usar nombre.json "[1, 2]"      Ejecutar una capacidad guardada de forma acotada
       pendientes                    Ver operaciones que esperan autorización
       aprobar <ID>                  Aprobar y ejecutar UNA operación pendiente
@@ -945,6 +946,29 @@ def run_repl(home: str | Path) -> int:
                             print(omega_forge.format_capability_list(
                                 omega_forge.list_capabilities(store.workspace)
                             ))
+                        elif task.startswith("evolucionar "):
+                            try:
+                                parts = shlex.split(raw_task[len("evolucionar "):])
+                            except ValueError as exc:
+                                raise OmegaError("Sintaxis de evolución inválida; revisa las comillas.") from exc
+                            if len(parts) != 3:
+                                raise OmegaError('Uso: forja evolucionar "spec.json" actual.json nueva.json')
+                            spec_path, existing_filename, new_filename = parts
+                            proposal = omega_forge.propose_capability_evolution(
+                                store.workspace, existing_filename,
+                                omega_forge.load_spec(spec_path), new_filename
+                            )
+                            print(f"Comparación: {existing_filename} → {new_filename}")
+                            print(f"Expresión candidata: {proposal['expression']}")
+                            print(f"Pasos estimados: anterior={proposal['existing_steps']} · nueva={proposal['new_steps']}")
+                            print(f"Evaluación: {proposal['reason']}")
+                            if proposal["improved"]:
+                                print("Se propone conservar la nueva versión sin sobrescribir la anterior.")
+                                queue_actions(store, [{"kind": "file_create", "args": {
+                                    "filename": new_filename, "content": proposal["content"]
+                                }}])
+                            else:
+                                print("No se encola ningún cambio; la versión actual sigue intacta.")
                         elif task.startswith("guardar "):
                             try:
                                 parts = shlex.split(raw_task[len("guardar "):])
