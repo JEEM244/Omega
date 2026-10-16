@@ -1193,6 +1193,40 @@ class OmegaForgeTests(unittest.TestCase):
         self.assertEqual(result["validation_cases"], 1)
         self.assertIn("no garantiza corrección universal", result["note"])
 
+    def test_forge_proposes_faster_capability_without_overwriting_old_version(self):
+        spec = {
+            "name": "suma de dos valores",
+            "examples": [
+                {"input": [1, 2], "output": 3},
+                {"input": [2, 4], "output": 6},
+                {"input": [7, -2], "output": 5},
+            ],
+            "validation": [
+                {"input": [10, 5], "output": 15},
+                {"input": [-4, -3], "output": -7},
+            ],
+        }
+        candidate = omega_forge.synthesize_numeric(spec)
+        slower = dict(
+            candidate,
+            expression="suma_lineal(xs)",
+            source="def solve(xs):\\n    total = 0\\n    for value in xs:\\n        total = total + value\\n    return total\\n",
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp) / "workspace"
+            workspace.mkdir()
+            (workspace / "suma_v1.json").write_text(
+                omega_forge.capability_document(slower), encoding="utf-8"
+            )
+            proposal = omega_forge.propose_capability_evolution(
+                workspace, "suma_v1.json", spec, "suma_v2.json"
+            )
+            self.assertTrue((workspace / "suma_v1.json").is_file())
+            self.assertFalse((workspace / "suma_v2.json").exists())
+        self.assertTrue(proposal["improved"])
+        self.assertGreater(proposal["existing_steps"], proposal["new_steps"])
+        self.assertIn("omega-forge-capability-v2", proposal["content"])
+
     def test_forge_capability_catalog_lists_only_valid_capabilities(self):
         report = omega_forge.synthesize_numeric({
             "name": "suma simple",
