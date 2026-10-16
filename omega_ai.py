@@ -838,7 +838,7 @@ def print_terminal_banner(home: str | Path, enabled: bool | None = None) -> None
     print()
     print(terminal_style("Bienvenido a OMEGA AI", "bold", enabled))
     print("Asistente local para trabajar, recordar y analizar.")
-    print(terminal_style("Comandos rápidos: /ayuda · /estado · /pendientes · /salir", "muted", enabled))
+    print(terminal_style("Comandos rápidos: /ayuda · /forja · /pendientes · /salir", "muted", enabled))
     print(terminal_style("─" * min(max(shutil.get_terminal_size(fallback=(80, 24)).columns, 32), 56), "muted", enabled))
 
 
