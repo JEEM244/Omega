@@ -723,7 +723,13 @@ def capability_document(report: dict[str, Any]) -> str:
         "validation_cases": report.get("validation_cases"),
         "note": "Validada solo para los casos de prueba declarados; no garantiza corrección universal.",
     }
-    if not isinstance(document["name"], str) or not isinstance(document["expression"], str):
+    if (not isinstance(document["name"], str) or not document["name"].strip()
+            or len(document["name"]) > 80
+            or not isinstance(document["expression"], str)
+            or len(document["expression"]) > MAX_SOURCE_BYTES
+            or type(document["validation_cases"]) is not int
+            or not 1 <= document["validation_cases"] <= 20
+            or not isinstance(document["note"], str)):
         raise ForgeError("El informe de síntesis no contiene metadatos válidos.")
     serialized = json.dumps(document, ensure_ascii=False, indent=2) + "\n"
     if len(serialized) > MAX_TEXT_LENGTH:
@@ -772,6 +778,8 @@ def execute_capability(workspace: str | Path, filename: str, data: Any) -> dict[
         raise ForgeError("Expresión de capacidad inválida.")
     if not isinstance(document["source"], str):
         raise ForgeError("Código de capacidad inválido.")
+    if not isinstance(document["note"], str) or len(document["note"]) > 400:
+        raise ForgeError("Nota de capacidad inválida.")
     if type(document["validation_cases"]) is not int or not 1 <= document["validation_cases"] <= 20:
         raise ForgeError("Número de casos de validación inválido.")
     interpreter = _Interpreter(document["source"])
@@ -815,9 +823,14 @@ def list_capabilities(workspace: str | Path) -> list[dict[str, Any]]:
                 continue
             if document.get("format") != "omega-forge-capability-v1":
                 continue
-            if not isinstance(document.get("name"), str) or not isinstance(document.get("expression"), str):
+            if (not isinstance(document.get("name"), str) or not document["name"].strip()
+                    or len(document["name"]) > 80
+                    or not isinstance(document.get("expression"), str)
+                    or len(document["expression"]) > MAX_SOURCE_BYTES):
                 continue
-            if not isinstance(document.get("source"), str) or not isinstance(document.get("note"), str):
+            if (not isinstance(document.get("source"), str)
+                    or not isinstance(document.get("note"), str)
+                    or len(document["note"]) > 400):
                 continue
             if type(document.get("validation_cases")) is not int or not 1 <= document["validation_cases"] <= 20:
                 continue
