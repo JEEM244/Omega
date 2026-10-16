@@ -5,6 +5,7 @@
 - Amplía la síntesis guiada por ejemplos para descubrir expresiones con hasta dos operaciones anidadas sobre una a tres entradas numéricas.
 - Incorpora agregados `sum(xs)`, `min(xs)` y `max(xs)`, además de constantes y operadores aritméticos acotados.
 - Añade límites explícitos de tamaño de fuente, nodos AST, profundidad sintáctica, iteraciones, colecciones y pasos del intérprete.
+- Limita también la profundidad de anidamiento JSON de manifiestos, entradas y capacidades para mantener un comportamiento consistente entre versiones de Python.
 - Permite guardar una capacidad validada como JSON en el workspace mediante una operación `file_create` que requiere aprobación.
 - Conserva los casos de validación reservados y los vuelve a comprobar antes de ejecutar una capacidad guardada.
 - Añade un catálogo local acotado y metadatos de procedencia para versiones evolucionadas.
