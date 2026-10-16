@@ -1241,11 +1241,11 @@ class OmegaForgeTests(unittest.TestCase):
             self.assertIn("Resultado: 11", rendered)
 
     def test_forge_rejects_excessive_ast_nodes_and_depth(self):
-        many_nodes = "def solve(xs):\\n    return " + "+".join(["1"] * 300) + "\\n"
+        many_nodes = "def solve(xs):\n    return " + "+".join(["1"] * 300) + "\n"
         with self.assertRaisesRegex(omega_forge.ForgeError, "nodos de sintaxis"):
             omega_forge._Interpreter(many_nodes)
 
-        deeply_nested = "def solve(xs):\\n    return " + ("-" * 70) + "1\\n"
+        deeply_nested = "def solve(xs):\n    return " + ("-" * 70) + "1\n"
         with self.assertRaisesRegex(omega_forge.ForgeError, "profundidad sintáctica"):
             omega_forge._Interpreter(deeply_nested)
 
