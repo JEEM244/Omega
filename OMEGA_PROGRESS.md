@@ -8,6 +8,7 @@ Actualizado: 2026-10-15.
 - Rama de desarrollo: `main`.
 - El prototipo histórico se conserva en https://github.com/JEEM244/herramientas-termux/tree/omega-ai-prototype; el PR histórico sigue sin fusionarse: https://github.com/JEEM244/herramientas-termux/pull/1
 - El desarrollo de OMEGA continúa únicamente en este repositorio y no depende del lanzador del repositorio histórico.
+- `VISION.md` define la misión actual, los límites de lo que FORGE hace hoy y los criterios para aceptar nuevas funciones; usarlo como referencia antes de añadir módulos.
 - No declarar compatibilidad Android confirmada hasta probar en Termux en el dispositivo del usuario.
 - Escaneo solo en objetivos autorizados; captura solo tras autorización explícita y consentimiento VPN de PCAPdroid.
 
