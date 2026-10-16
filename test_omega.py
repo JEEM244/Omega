@@ -1142,7 +1142,7 @@ class OmegaForgeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "deep.json"
             path.write_text("[" * 2000 + "0" + "]" * 2000, encoding="utf-8")
-            with self.assertRaisesRegex(omega_forge.ForgeError, "profundidad de anidamiento"):
+            with self.assertRaisesRegex(omega_forge.ForgeError, "profundidad máxima"):
                 omega_forge.load_spec(path)
 
     def test_custom_manifest_loader_rejects_symlinks(self):
