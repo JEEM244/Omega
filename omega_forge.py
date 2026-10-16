@@ -717,7 +717,7 @@ def synthesize_numeric(spec: Any) -> dict[str, Any]:
     }
 
 
-def capability_document(report: dict[str, Any]) -> str:
+def capability_document(report: dict[str, Any], *, note: str | None = None) -> str:
     """Serialize only a validated synthesized function as a reusable data-only capability."""
     if not isinstance(report, dict) or not report.get("validated") or not isinstance(report.get("source"), str):
         raise ForgeError("Solo se puede guardar una capacidad que haya superado la validación.")
@@ -730,7 +730,7 @@ def capability_document(report: dict[str, Any]) -> str:
         "source": source,
         "validation_cases": report.get("validation_cases"),
         "validation": report.get("validation"),
-        "note": "Validada solo para los casos de prueba declarados; no garantiza corrección universal.",
+        "note": note or "Validada solo para los casos de prueba declarados; no garantiza corrección universal.",
     }
     if (not isinstance(document["name"], str) or not document["name"].strip()
             or len(document["name"]) > 80
@@ -990,7 +990,13 @@ def propose_capability_evolution(
         "existing_steps": old_validation_steps,
         "new_steps": new_steps,
         "reason": reason,
-        "content": capability_document(candidate),
+        "content": capability_document(
+            candidate,
+            note=(
+                f"Versión evolucionada desde {existing_filename}. "
+                f"Motivo: {reason[:220]}. Validación limitada a los casos almacenados."
+            ),
+        ),
     }
 
 
