@@ -1171,6 +1171,16 @@ class OmegaForgeTests(unittest.TestCase):
             finally:
                 store.close()
 
+    def test_forge_normalizes_invalid_power_operations(self):
+        for source in (
+            'def solve(xs):\n    return "x" ** 2\n',
+            'def solve(xs):\n    return 0 ** -1\n',
+        ):
+            with self.subTest(source=source):
+                interpreter = omega_forge._Interpreter(source)
+                with self.assertRaisesRegex(omega_forge.ForgeError, "Potencia inválida"):
+                    interpreter.run([1])
+
     def test_synthesis_discovers_expression_and_uses_held_out_validation(self):
         spec = {
             "name": "sumar dos valores",
