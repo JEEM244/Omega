@@ -971,10 +971,12 @@ def run_repl(home: str | Path) -> int:
                             if len(parts) != 2:
                                 raise OmegaError('Uso: forja usar capacidad.json "[1, 2, 3]"')
                             filename, raw_data = parts
+                            if len(raw_data.encode("utf-8")) > 8192:
+                                raise OmegaError("Los datos de la capacidad superan el límite de 8192 bytes.")
                             try:
                                 data = json.loads(raw_data)
-                            except json.JSONDecodeError as exc:
-                                raise OmegaError("Los datos deben ser JSON válido; ejemplo: '[1, 2, 3]'.") from exc
+                            except (json.JSONDecodeError, RecursionError) as exc:
+                                raise OmegaError("Los datos deben ser JSON válido y no exceder la profundidad admitida; ejemplo: '[1, 2, 3]'.") from exc
                             result = omega_forge.execute_capability(store.workspace, filename, data)
                             print(f"Capacidad: {result['name']}")
                             print("Resultado:", json.dumps(result["result"], ensure_ascii=False))
