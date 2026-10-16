@@ -999,6 +999,7 @@ def run_repl(home: str | Path) -> int:
                             filename, raw_data = parts
                             if len(raw_data.encode("utf-8")) > 8192:
                                 raise OmegaError("Los datos de la capacidad superan el límite de 8192 bytes.")
+                            omega_forge.check_json_nesting(raw_data)
                             try:
                                 data = json.loads(raw_data)
                             except (json.JSONDecodeError, RecursionError) as exc:
