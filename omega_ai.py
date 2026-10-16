@@ -755,6 +755,7 @@ def help_text() -> str:
       objetivo <texto>              Crear un plan transparente a partir de un objetivo
       forja [sum|max|todo|spec.json] Comparar algoritmos con pruebas locales
       forja descubrir spec.json       Sintetizar una expresión desde ejemplos y validación
+      forja lista                    Listar capacidades guardadas
       forja guardar spec.json nombre.json  Proponer guardar una capacidad validada
       forja usar nombre.json "[1, 2]"      Ejecutar una capacidad guardada de forma acotada
       pendientes                    Ver operaciones que esperan autorización
@@ -940,6 +941,10 @@ def run_repl(home: str | Path) -> int:
                     try:
                         if task in ("all", "todo", "sum", "max"):
                             print(omega_forge.format_report(task))
+                        elif task in ("lista", "listar"):
+                            print(omega_forge.format_capability_list(
+                                omega_forge.list_capabilities(store.workspace)
+                            ))
                         elif task.startswith("guardar "):
                             parts = shlex.split(raw_task[len("guardar "):])
                             if len(parts) != 2:
