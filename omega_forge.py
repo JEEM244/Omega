@@ -718,7 +718,7 @@ def capability_document(report: dict[str, Any]) -> str:
     if not isinstance(report, dict) or not report.get("validated") or not isinstance(report.get("source"), str):
         raise ForgeError("Solo se puede guardar una capacidad que haya superado la validación.")
     source = report["source"]
-    _Interpreter(source)
+    interpreter = _Interpreter(source)
     document = {
         "format": "omega-forge-capability-v2",
         "name": report.get("name"),
@@ -747,7 +747,7 @@ def capability_document(report: dict[str, Any]) -> str:
             raise ForgeError("El informe contiene casos de validación inválidos.")
         input_data, expected = _checked(case["input"]), _checked(case["output"])
         try:
-            actual, _ = _Interpreter(source).run(input_data)
+            actual, _ = interpreter.run(input_data)
         except (ForgeError, ArithmeticError, TypeError, ValueError, IndexError) as exc:
             raise ForgeError(f"La capacidad no supera la validación antes de guardarse (caso {index}): {exc}") from exc
         if not _equal_typed(actual, expected):
