@@ -30,6 +30,8 @@ MAX_SPEC_BYTES = 64 * 1024
 MAX_CANDIDATES = 10
 MAX_SYNTH_CANDIDATES = 3000
 MAX_NESTING = 8
+MAX_AST_NODES = 512
+MAX_AST_DEPTH = 64
 
 
 class ForgeError(ValueError):
@@ -115,6 +117,17 @@ class _Interpreter:
                 or function.args.vararg or function.args.kwarg or function.args.defaults
                 or function.args.kw_defaults):
             raise ForgeError("Usa exactamente def solve(datos): sin decoradores ni argumentos extra.")
+        pending_nodes = [(tree, 0)]
+        node_count = 0
+        while pending_nodes:
+            current, depth = pending_nodes.pop()
+            node_count += 1
+            if node_count > MAX_AST_NODES:
+                raise ForgeError(f"El candidato supera {MAX_AST_NODES} nodos de sintaxis.")
+            if depth > MAX_AST_DEPTH:
+                raise ForgeError(f"El candidato supera la profundidad sintáctica de {MAX_AST_DEPTH}.")
+            pending_nodes.extend((child, depth + 1) for child in ast.iter_child_nodes(current))
+
         self.body = function.body
         self.parameter = function.args.args[0].arg
         if self.parameter.startswith("__"):
