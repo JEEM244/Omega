@@ -104,6 +104,7 @@ FORGE puede sintetizar una expresión aritmética desde ejemplos y validarla con
 /forja guardar forge_discovery.json suma.json
 /pendientes
 /aprobar ID_REAL
+/forja lista
 ```
 
 Revisa la descripción de la operación y confirma con `SI` únicamente si el archivo propuesto es el esperado. El archivo es un manifiesto JSON con código fuente de una función restringida, no un módulo Python ejecutable.
