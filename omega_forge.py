@@ -28,6 +28,7 @@ MAX_ABS_NUMBER = 1e100
 MAX_TEXT_LENGTH = 4096
 MAX_SPEC_BYTES = 64 * 1024
 MAX_CANDIDATES = 10
+MAX_CAPABILITY_SCAN = 500
 MAX_SYNTH_CANDIDATES = 3000
 MAX_NESTING = 8
 MAX_AST_NODES = 512
@@ -782,6 +783,69 @@ def execute_capability(workspace: str | Path, filename: str, data: Any) -> dict[
         "validation_cases": document["validation_cases"],
         "note": document["note"],
     }
+
+
+def list_capabilities(workspace: str | Path) -> list[dict[str, Any]]:
+    """List recognized, syntactically safe capability manifests without executing them."""
+    base = Path(workspace).expanduser()
+    if base.is_symlink():
+        raise ForgeError("El workspace no puede ser un enlace simbólico.")
+    try:
+        base = base.resolve(strict=True)
+        if not base.is_dir():
+            raise ForgeError("El workspace no es un directorio.")
+        entries: list[Path] = []
+        for index, path in enumerate(base.iterdir()):
+            if index >= MAX_CAPABILITY_SCAN:
+                break
+            entries.append(path)
+    except (OSError, RuntimeError) as exc:
+        raise ForgeError(f"No se pudo examinar el workspace: {exc}") from exc
+
+    required = {"format", "name", "expression", "source", "validation_cases", "note"}
+    capabilities: list[dict[str, Any]] = []
+    for path in entries:
+        if path.suffix.casefold() != ".json" or path.is_symlink() or not path.is_file():
+            continue
+        try:
+            if path.stat().st_size > MAX_SPEC_BYTES:
+                continue
+            document = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(document, dict) or set(document) != required:
+                continue
+            if document.get("format") != "omega-forge-capability-v1":
+                continue
+            if not isinstance(document.get("name"), str) or not isinstance(document.get("expression"), str):
+                continue
+            if not isinstance(document.get("source"), str) or not isinstance(document.get("note"), str):
+                continue
+            if type(document.get("validation_cases")) is not int or not 1 <= document["validation_cases"] <= 20:
+                continue
+            _Interpreter(document["source"])
+        except (OSError, UnicodeError, json.JSONDecodeError, ForgeError):
+            continue
+        capabilities.append({
+            "filename": path.name,
+            "name": document["name"],
+            "expression": document["expression"],
+            "validation_cases": document["validation_cases"],
+        })
+    return sorted(capabilities, key=lambda item: item["filename"].casefold())
+
+
+def format_capability_list(capabilities: list[dict[str, Any]]) -> str:
+    lines = [f"OMEGA FORGE {VERSION} · capacidades locales"]
+    if not capabilities:
+        lines.append("No hay capacidades guardadas y reconocidas en workspace/.")
+    else:
+        for item in capabilities:
+            lines.append(
+                f"  {item['filename']} — {item['name']} · validación declarada: "
+                f"{item['validation_cases']} casos"
+            )
+            lines.append(f"    Expresión: {item['expression']}")
+    lines.append("Las capacidades se interpretan con límites; el listado no ejecuta código.")
+    return "\n".join(lines)
 
 
 def format_synthesis_report(report: dict[str, Any]) -> str:
