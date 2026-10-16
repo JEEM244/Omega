@@ -946,7 +946,10 @@ def run_repl(home: str | Path) -> int:
                                 omega_forge.list_capabilities(store.workspace)
                             ))
                         elif task.startswith("guardar "):
-                            parts = shlex.split(raw_task[len("guardar "):])
+                            try:
+                                parts = shlex.split(raw_task[len("guardar "):])
+                            except ValueError as exc:
+                                raise OmegaError("Sintaxis de guardado inválida; revisa las comillas.") from exc
                             if len(parts) != 2:
                                 raise OmegaError('Uso: forja guardar "spec.json" capacidad.json')
                             spec_path, filename = parts
@@ -961,7 +964,10 @@ def run_repl(home: str | Path) -> int:
                                 "filename": filename, "content": content
                             }}])
                         elif task.startswith("usar "):
-                            parts = shlex.split(raw_task[len("usar "):])
+                            try:
+                                parts = shlex.split(raw_task[len("usar "):])
+                            except ValueError as exc:
+                                raise OmegaError("Sintaxis de uso inválida; revisa las comillas.") from exc
                             if len(parts) != 2:
                                 raise OmegaError('Uso: forja usar capacidad.json "[1, 2, 3]"')
                             filename, raw_data = parts
