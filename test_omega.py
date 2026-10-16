@@ -1230,6 +1230,7 @@ class OmegaForgeTests(unittest.TestCase):
         self.assertTrue(proposal["improved"])
         self.assertGreater(proposal["existing_steps"], proposal["new_steps"])
         self.assertIn("omega-forge-capability-v2", proposal["content"])
+        self.assertIn("Versión evolucionada desde suma_v1.json", proposal["content"])
         self.assertFalse(unchanged["improved"])
         self.assertIsNone(unchanged["content"])
 
