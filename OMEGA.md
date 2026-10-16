@@ -96,6 +96,26 @@ El intérprete no permite imports de candidatos, llamadas fuera de una lista cer
 
 El puntaje por pasos es una estimación del trabajo dentro del intérprete, no milisegundos ni una medición de rendimiento nativo. Validar contra ejemplos suministrados no demuestra corrección universal. FORGE no reescribe aún el núcleo de OMEGA: es el primer mecanismo verificable para generar alternativas pequeñas y comparar si explican los datos.
 
+## OMEGA FORGE: guardar y reutilizar capacidades
+
+FORGE puede sintetizar una expresión aritmética desde ejemplos y validarla con casos reservados. Para guardar una capacidad validada dentro de `~/.omega_ai/workspace`, usa:
+
+```text
+/forja guardar forge_discovery.json suma.json
+/pendientes
+/aprobar ID_REAL
+```
+
+Revisa la descripción de la operación y confirma con `SI` únicamente si el archivo propuesto es el esperado. El archivo es un manifiesto JSON con código fuente de una función restringida, no un módulo Python ejecutable.
+
+Para reutilizarlo, proporciona datos JSON explícitos:
+
+```text
+/forja usar suma.json "[10, 5]"
+```
+
+FORGE ejecuta la función mediante su intérprete limitado, con restricciones de tamaño, profundidad, colección y pasos. Rechaza rutas fuera de `workspace`, enlaces simbólicos, formatos desconocidos y sintaxis no permitida. La validación con ejemplos no demuestra corrección universal; trata cada capacidad como experimental.
+
 ## Seguridad y límites
 
 - El planificador es una demostración transparente basada en reglas, no un LLM ni inteligencia general.
