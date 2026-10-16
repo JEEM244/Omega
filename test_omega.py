@@ -1192,6 +1192,27 @@ class OmegaForgeTests(unittest.TestCase):
         self.assertEqual(result["validation_cases"], 1)
         self.assertIn("no garantiza corrección universal", result["note"])
 
+    def test_forge_capability_catalog_lists_only_valid_capabilities(self):
+        report = omega_forge.synthesize_numeric({
+            "name": "suma simple",
+            "examples": [
+                {"input": [1, 2], "output": 3},
+                {"input": [2, 4], "output": 6},
+                {"input": [7, -2], "output": 5},
+            ],
+            "validation": [{"input": [10, 5], "output": 15}],
+        })
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp) / "workspace"
+            workspace.mkdir()
+            (workspace / "suma.json").write_text(
+                omega_forge.capability_document(report), encoding="utf-8"
+            )
+            (workspace / "otro.json").write_text('{"name":"no es capacidad"}', encoding="utf-8")
+            capabilities = omega_forge.list_capabilities(workspace)
+        self.assertEqual([item["filename"] for item in capabilities], ["suma.json"])
+        self.assertEqual(capabilities[0]["name"], "suma simple")
+
     def test_capability_runner_rejects_unsafe_paths_and_untrusted_syntax(self):
         with tempfile.TemporaryDirectory() as temp:
             workspace = Path(temp) / "workspace"
