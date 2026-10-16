@@ -989,7 +989,7 @@ def propose_capability_evolution(
         "expression": candidate["expression"],
         "existing_filename": existing_filename,
         "new_filename": new_filename,
-        "existing_steps": old_validation_steps,
+        "existing_steps": old_validation_steps if old_passes else None,
         "new_steps": new_steps,
         "reason": reason,
         "content": capability_document(
