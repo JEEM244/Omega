@@ -50,6 +50,7 @@ Consulta [`TERMUX_TESTING.md`](TERMUX_TESTING.md) para verificar paso a paso la 
 - `OMEGA.md` — documentación del lenguaje y seguridad.
 - `OMEGA_PROGRESS.md` — bitácora de desarrollo y recuperación.
 - `CHANGELOG.md` — cambios y límites por versión.
+- `VISION.md` — propósito, principios y ruta técnica para no perder la dirección.
 - `demo.omg` — programa demostrativo.
 - `forge_demo.json` — manifiesto reproducible para comparar algoritmos.
 - `forge_discovery.json` — ejemplo guiado para sintetizar y validar una expresión nueva.
